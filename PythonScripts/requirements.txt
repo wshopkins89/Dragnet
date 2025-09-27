@@ -1,0 +1,11 @@
+numpy
+pandas
+sqlalchemy
+psutil
+flask
+urllib3<2
+pytz
+pymysql
+pytrends
+selenium
+mysqlconnector
