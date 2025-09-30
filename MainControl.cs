@@ -17,6 +17,7 @@ using System.Windows.Forms;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
+using System.Drawing;
 
 
 namespace DragnetControl
@@ -45,6 +46,7 @@ namespace DragnetControl
         private ObservableCollection<double> ramHistory = new ObservableCollection<double>();
         private LineSeries<double> ramSeries;
         private const int maxPoints = 60;
+        private float _currentDpi = 96f;
         private string StatusJson = "{}";
         private dynamic currentNodeStatus = null;
         DataTable cryptoassets = new DataTable();
@@ -68,6 +70,8 @@ namespace DragnetControl
         public MainControl()
         {
             InitializeComponent();
+
+            _currentDpi = AutoScaleDimensions.Width > 0 ? AutoScaleDimensions.Width : 96f;
 
             // Timer setup
             timer1.Interval = 100;
@@ -126,6 +130,47 @@ namespace DragnetControl
             WireAiConfigUi();
             LoadPromptListAsync();
             WireUpEventsOnce();
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            if (!DesignMode)
+            {
+                ApplyDpiScaling(DeviceDpi);
+            }
+        }
+
+        protected override void OnDpiChanged(DpiChangedEventArgs e)
+        {
+            base.OnDpiChanged(e);
+
+            if (!DesignMode)
+            {
+                ApplyDpiScaling(e.DeviceDpiNew);
+            }
+        }
+
+        private void ApplyDpiScaling(float targetDpi)
+        {
+            if (targetDpi <= 0)
+            {
+                return;
+            }
+
+            if (Math.Abs(targetDpi - _currentDpi) < 0.1f)
+            {
+                return;
+            }
+
+            var scaleFactor = targetDpi / _currentDpi;
+
+            SuspendLayout();
+            Scale(new SizeF(scaleFactor, scaleFactor));
+            ResumeLayout(true);
+
+            _currentDpi = targetDpi;
         }
         private sealed class PromptRow
         {
