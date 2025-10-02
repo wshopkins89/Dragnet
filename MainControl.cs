@@ -3520,6 +3520,13 @@ LIMIT 1;";
         {
 
         }
+
+        private void gullveigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            //open gullveig windows form
+            Gullveig gullveigForm = new Gullveig();
+            gullveigForm.Show();
+        }
     }
 }
 

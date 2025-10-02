@@ -5,9 +5,6 @@ namespace DragnetControl
 {
     public partial class AssetLoadingScreen : Form
     {
-        string username = GlobalVariables.username;
-        public string userConnStr = "server=192.168.1.210;uid=dragnet;password=dragnet5;database=userdata";
-
         public AssetLoadingScreen()
         {
             InitializeComponent();
@@ -23,7 +20,7 @@ namespace DragnetControl
 
         private void LoadUserSettings()
         {
-            using (MySqlConnection conn = new MySqlConnection(userConnStr))
+            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
             {
                 try
                 {
@@ -31,7 +28,7 @@ namespace DragnetControl
                     string query = "SELECT * FROM users WHERE username = @username";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@username", username);
+                        cmd.Parameters.AddWithValue("@username", GlobalVariables.username);
 
                         using (MySqlDataReader reader = cmd.ExecuteReader())
                         {

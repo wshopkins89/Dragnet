@@ -10,7 +10,7 @@ namespace DragnetControl
         public Authentication()
         {
             InitializeComponent();
-            GlobalVariables.UsersDBIP = "192.168.1.210";
+            GlobalVariables.UsersDBIP = "localhost";
             GlobalVariables.UsersDBUsername = "dragnet";
             GlobalVariables.usersdbPW = "dragnet5";
             GlobalVariables.UsersDBConnect =
@@ -58,8 +58,6 @@ namespace DragnetControl
                                     return true;
                                 }
 
-                                // If some users were MD5’d, you can optionally include:
-                                // if (VerifyUnsaltedPassword(passwordAttempt, storedPasswordHash)) { ... }
                                 return false;
                             }
                             else
