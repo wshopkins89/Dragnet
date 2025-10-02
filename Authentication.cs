@@ -1,9 +1,7 @@
-﻿using System;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
-using System.Windows.Forms;
-using MySql.Data.MySqlClient;
 using YourNamespace;
+using MySqlConnector;
 
 namespace DragnetControl
 {
@@ -15,63 +13,64 @@ namespace DragnetControl
             GlobalVariables.UsersDBIP = "192.168.1.210";
             GlobalVariables.UsersDBUsername = "dragnet";
             GlobalVariables.usersdbPW = "dragnet5";
-            GlobalVariables.UsersDBConnect = $"server={GlobalVariables.UsersDBIP};uid={GlobalVariables.UsersDBUsername};password={GlobalVariables.usersdbPW};database=userdata";
+            GlobalVariables.UsersDBConnect =
+                $"server={GlobalVariables.UsersDBIP};uid={GlobalVariables.UsersDBUsername};password={GlobalVariables.usersdbPW};database=userdata";
         }
 
         private string passwordAttempt;
-       
-        private bool CheckCredentials(string username, string passwordAttempt)
+
+        private bool CheckCredentials(string username, string passwordAttempt, out bool dbError)
         {
-            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            dbError = false;
+
+            using (var conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
             {
                 try
                 {
                     conn.Open();
 
-                    string query = "SELECT * FROM users WHERE username = @username";
-                    using (MySqlCommand cmd = new MySqlCommand(query, conn))
+                    const string query = "SELECT * FROM users WHERE username = @username";
+                    using (var cmd = new MySqlCommand(query, conn))
                     {
-                        cmd.Parameters.AddWithValue("@username", GlobalVariables.username);
-                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        // BUGFIX: bind the method parameter, not the global
+                        cmd.Parameters.AddWithValue("@username", username);
+
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            if (reader.HasRows)
+                            if (!reader.HasRows)
+                                return false;
+
+                            reader.Read();
+                            string storedPasswordHash = reader.GetString("password");
+
+                            // If not a BCrypt hash, treat as legacy/unsalted
+                            if (IsUnsaltedPassword(storedPasswordHash))
                             {
-                                reader.Read();
-                                string storedPasswordHash = reader.GetString("password");
-
-                                // Check if the stored password is unsalted (i.e., plaintext)
-                                if (IsUnsaltedPassword(storedPasswordHash))
+                                // If your legacy was plaintext:
+                                if (storedPasswordHash == passwordAttempt)
                                 {
-                                    // Check if the plaintext password matches
-                                    if (storedPasswordHash == passwordAttempt)
+                                    // Force password change
+                                    using (var changePasswordForm = new PasswordChangeForm(username))
                                     {
-                                        // Force a password change
-                                        PasswordChangeForm changePasswordForm = new PasswordChangeForm(GlobalVariables.username);
                                         changePasswordForm.ShowDialog();
-
-                                        GlobalVariables.accountstatus = reader.GetInt32("accountstatus");
-                                        return true;
                                     }
-                                    else
-                                    {
-                                        return false;
-                                    }
-                                }
-                                else
-                                {
-                                    // Verify the password using BCrypt
-                                    bool isVerified = BCrypt.Net.BCrypt.Verify(passwordAttempt, storedPasswordHash);
-                                    if (isVerified)
-                                    {
-                                        GlobalVariables.accountstatus = reader.GetInt32("accountstatus");
-                                        return true;
-                                    }
+                                    GlobalVariables.accountstatus = reader.GetInt32("accountstatus");
+                                    return true;
                                 }
 
+                                // If some users were MD5’d, you can optionally include:
+                                // if (VerifyUnsaltedPassword(passwordAttempt, storedPasswordHash)) { ... }
                                 return false;
                             }
                             else
                             {
+                                // BCrypt verification
+                                bool ok = BCrypt.Net.BCrypt.Verify(passwordAttempt, storedPasswordHash);
+                                if (ok)
+                                {
+                                    GlobalVariables.accountstatus = reader.GetInt32("accountstatus");
+                                    return true;
+                                }
                                 return false;
                             }
                         }
@@ -79,29 +78,29 @@ namespace DragnetControl
                 }
                 catch (MySqlException ex)
                 {
-                    Console.WriteLine("Error: {0}", ex.ToString());
+                    dbError = true;
+
+                    // POPUP on login attempt failure due to DB connectivity (or any MySQL error)
+                    MessageBox.Show(
+                        "Unable to connect to the Users database.\n\nDetails:\n" + ex.Message,
+                        "Database Connection Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
+
                     return false;
-                }
-                finally
-                {
-                    conn.Close();
                 }
             }
         }
 
-        // Helper method to determine if the password is unsalted (plaintext)
+        // Helper: consider non-BCrypt (not $2*) and not length 60 as "unsalted/legacy"
         private bool IsUnsaltedPassword(string storedPassword)
         {
-            // Check if the password is not a valid BCrypt hash (i.e., it's plaintext)
-            // BCrypt hashes typically start with $2a$, $2b$, $2x$, or $2y$ and are 60 characters long
             return !storedPassword.StartsWith("$2") || storedPassword.Length != 60;
         }
 
-
-        // Verifies an unsalted password
         private bool VerifyUnsaltedPassword(string passwordAttempt, string storedPassword)
         {
-            // Assuming storedPassword is an MD5 hash
             using (MD5 md5 = MD5.Create())
             {
                 byte[] inputBytes = Encoding.ASCII.GetBytes(passwordAttempt);
@@ -111,27 +110,16 @@ namespace DragnetControl
             }
         }
 
-        // Checks if a string is a valid hexadecimal string
-        private bool IsHexString(string input)
-        {
-            foreach (char c in input)
-            {
-                bool isHexChar = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
-                if (!isHexChar)
-                    return false;
-            }
-            return true;
-        }
-
         private void Authentication_Load(object sender, EventArgs e)
         {
-            MySqlConnection conn;
             try
             {
-                conn = new MySqlConnection(GlobalVariables.UsersDBConnect);
-                conn.Open();
-                toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;
-                toolStripStatusLabel1.Text = "User Database Connection Established";
+                using (var conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+                {
+                    conn.Open();
+                    toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;
+                    toolStripStatusLabel1.Text = "User Database Connection Established";
+                }
             }
             catch (MySqlException)
             {
@@ -145,7 +133,20 @@ namespace DragnetControl
             GlobalVariables.username = UsernameBox.Text;
             passwordAttempt = PasswordBox.Text;
 
-            if (CheckCredentials(GlobalVariables.username, passwordAttempt))
+            bool dbError;
+            bool ok = CheckCredentials(GlobalVariables.username, passwordAttempt, out dbError);
+
+            if (dbError)
+            {
+                // We already showed a MessageBox in CheckCredentials.
+                // Make the UI reflect the failure state:
+                InformationLabel.ForeColor = System.Drawing.Color.Red;
+                InformationLabel.Text = "Database connection failed.";
+                PasswordBox.Text = "";
+                return;
+            }
+
+            if (ok)
             {
                 if (GlobalVariables.accountstatus == 3)
                 {
@@ -160,10 +161,13 @@ namespace DragnetControl
                     PasswordBox.Text = "";
                     AccessRequestLabel.Hide();
                     this.Hide();
-                    AssetLoadingScreen assetLoad = new AssetLoadingScreen();
-                    assetLoad.ShowDialog();
 
-                    FormManager.MainControl.FormClosed += new FormClosedEventHandler(MainControl_FormClosed);
+                    using (var assetLoad = new AssetLoadingScreen())
+                    {
+                        assetLoad.ShowDialog();
+                    }
+
+                    FormManager.MainControl.FormClosed += MainControl_FormClosed;
                 }
             }
             else
@@ -181,11 +185,11 @@ namespace DragnetControl
 
         private void MainControl_FormClosed(object sender, FormClosedEventArgs e)
         {
-            if (RememberUserNameCheckBox.Checked == true)
+            if (RememberUserNameCheckBox.Checked)
             {
                 PasswordBox.Text = "";
             }
-            else if (RememberUserNameCheckBox.Checked == false)
+            else
             {
                 UsernameBox.Text = "";
                 PasswordBox.Text = "";
@@ -197,8 +201,6 @@ namespace DragnetControl
 
         private void ConnectionStatusStrip_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
-
         }
-
     }
 }
