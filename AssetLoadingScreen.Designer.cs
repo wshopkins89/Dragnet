@@ -29,7 +29,6 @@ namespace DragnetControl
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AssetLoadingScreen));
             progressBar1 = new ProgressBar();
             StatusLabel = new Label();
             SuspendLayout();
@@ -57,7 +56,6 @@ namespace DragnetControl
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
             BackgroundImageLayout = ImageLayout.Stretch;
             ClientSize = new Size(933, 519);
             Controls.Add(StatusLabel);

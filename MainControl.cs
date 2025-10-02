@@ -67,6 +67,9 @@ namespace DragnetControl
         private static readonly Dictionary<string, DateTime> _lastStart = new Dictionary<string, DateTime>();
         private const int RestartThrottleSeconds = 10; // tweak to taste
         private bool _checkInProgress = false;
+        private int _checkInProgressFlag = 0; // 0 = idle, 1 = running
+        private readonly object _firedLock = new();
+
         public MainControl()
         {
             InitializeComponent();
@@ -2651,20 +2654,23 @@ namespace DragnetControl
 
         private void CheckAndFireScheduledScripts()
         {
-            if (_checkInProgress) return;
-            _checkInProgress = true;
+            // atomically claim; if already running on another thread, bail
+            if (Interlocked.Exchange(ref _checkInProgressFlag, 1) == 1) return;
+
             try
             {
-                // Use UTC consistently to avoid DST surprises
                 DateTime nowUtc = DateTime.UtcNow;
                 DateTime minuteUtc = TruncateToMinute(nowUtc);
 
-                // Reset once per UTC day
-                if (minuteUtc.Date != lastResetDate)
+                // Reset once per UTC day (under lock)
+                lock (_firedLock)
                 {
-                    firedThisMinute.Clear();
-                    lastResetDate = minuteUtc.Date;
-                    Console.WriteLine("[SCHEDULER] Reset fired set.");
+                    if (minuteUtc.Date != lastResetDate)
+                    {
+                        firedThisMinute.Clear();
+                        lastResetDate = minuteUtc.Date;
+                        Console.WriteLine("[SCHEDULER] Reset fired set.");
+                    }
                 }
 
                 // Refresh schedule cache every 60s
@@ -2685,7 +2691,7 @@ namespace DragnetControl
             }
             finally
             {
-                _checkInProgress = false;
+                Volatile.Write(ref _checkInProgressFlag, 0);
             }
         }
         private bool ShouldRunThisMinute(ScheduleRow row, DateTime minuteUtc)
@@ -2726,11 +2732,16 @@ namespace DragnetControl
                             .FirstOrDefault(lbl => lbl.Text.Contains("."))?.Text ?? "localhost";
 
                 var key = (label, ip, minuteKey);
-                if (firedThisMinute.Contains(key))
-                    continue;
 
-                // Mark BEFORE firing to avoid double-fires if something is slow
-                //firedThisMinute.Add(key);
+                // *** Atomically check and add to the set ***
+                bool alreadyFired;
+                lock (_firedLock)
+                {
+                    alreadyFired = firedThisMinute.Contains(key);
+                    if (!alreadyFired)
+                        firedThisMinute.Add(key); // mark BEFORE firing
+                }
+                if (alreadyFired) continue;
 
                 // --- Direct update scripts ---
                 if (label == "Coinbase Update")
@@ -2789,8 +2800,6 @@ namespace DragnetControl
                         FireOffCommand(ip, payload);
                     }
                 }
-                // Mark BEFORE firing to avoid double-fires if something is slow
-                firedThisMinute.Add(key);
             }
         }
         private List<ScheduleRow> LoadScheduleRows()
