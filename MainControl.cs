@@ -67,7 +67,7 @@ namespace DragnetControl
         private static readonly Dictionary<string, DateTime> _lastStart = new Dictionary<string, DateTime>();
         private const int RestartThrottleSeconds = 10; // tweak to taste
         private bool _checkInProgress = false;
-        private int _checkInProgressFlag = 0; // 0 = idle, 1 = running
+        private readonly object _scheduleCheckSync = new();
         private readonly object _firedLock = new();
 
         public MainControl()
@@ -2652,10 +2652,32 @@ namespace DragnetControl
             RefreshScheduleGrid();
         }
 
+        private bool TryBeginScheduleCheck()
+        {
+            lock (_scheduleCheckSync)
+            {
+                if (_checkInProgress)
+                    return false;
+
+                _checkInProgress = true;
+                return true;
+            }
+        }
+
+        private void EndScheduleCheck()
+        {
+            lock (_scheduleCheckSync)
+            {
+                _checkInProgress = false;
+            }
+        }
+
+
         private void CheckAndFireScheduledScripts()
         {
             // atomically claim; if already running on another thread, bail
-            if (Interlocked.Exchange(ref _checkInProgressFlag, 1) == 1) return;
+            if (!TryBeginScheduleCheck())
+                return;
 
             try
             {
@@ -2691,7 +2713,7 @@ namespace DragnetControl
             }
             finally
             {
-                Volatile.Write(ref _checkInProgressFlag, 0);
+                EndScheduleCheck();
             }
         }
         private bool ShouldRunThisMinute(ScheduleRow row, DateTime minuteUtc)
