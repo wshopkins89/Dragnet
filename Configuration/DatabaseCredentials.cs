@@ -1,4 +1,7 @@
-﻿namespace DragnetControl.Configuration
+using System;
+using MySqlConnector;
+
+namespace DragnetControl.Configuration
 {
     public sealed class DatabaseCredentials
     {
@@ -27,7 +30,20 @@
 
         public string BuildConnectionString()
         {
-                return $"server={Host};uid={Username};password={Password};database={Database}";
+            var builder = new MySqlConnectionStringBuilder
+            {
+                Server = Host,
+                UserID = Username,
+                Password = Password,
+                Database = Database,
+            };
+
+            if (PrimaryPort.HasValue && PrimaryPort.Value > 0)
+            {
+                builder.Port = (uint)PrimaryPort.Value;
             }
+
+            return builder.ConnectionString;
+        }
     }
 }
