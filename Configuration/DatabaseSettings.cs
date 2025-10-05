@@ -1,6 +1,3 @@
-﻿using DragnetControl.Configuration;
-using System.Configuration;
-using System.Xml.Linq;
 using System;
 using System.Configuration;
 
@@ -13,7 +10,7 @@ namespace DragnetControl.Configuration
     public sealed class DatabaseSettings
     {
         private static readonly Lazy<DatabaseSettings> _instance =
-new Lazy<DatabaseSettings>(() => new DatabaseSettings());
+            new Lazy<DatabaseSettings>(() => new DatabaseSettings());
 
         private DatabaseSettings()
         {
@@ -38,22 +35,22 @@ new Lazy<DatabaseSettings>(() => new DatabaseSettings());
 
         private static string ReadConnectionString(string name)
         {
-    var settings = ConfigurationManager.ConnectionStrings[name];
-                if (settings == null || string.IsNullOrWhiteSpace(settings.ConnectionString))
-                    {
-        throw new ConfigurationErrorsException(
-        $"Connection string '{name}' is not configured in App.config.");
-                    }
-    
-                return settings.ConnectionString;
+            var settings = ConfigurationManager.ConnectionStrings[name];
+            if (settings == null || string.IsNullOrWhiteSpace(settings.ConnectionString))
+            {
+                throw new ConfigurationErrorsException(
+                    $"Connection string '{name}' is not configured in App.config.");
             }
+
+            return settings.ConnectionString;
+        }
 
         private static string? ReadOptionalConnectionString(string name)
         {
-    var settings = ConfigurationManager.ConnectionStrings[name];
-                return string.IsNullOrWhiteSpace(settings?.ConnectionString)
-                    ? null
-                    : settings.ConnectionString;
-            }
+            var settings = ConfigurationManager.ConnectionStrings[name];
+            return string.IsNullOrWhiteSpace(settings?.ConnectionString)
+                ? null
+                : settings.ConnectionString;
+        }
     }
 }
