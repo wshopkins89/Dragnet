@@ -41,6 +41,8 @@ namespace DragnetControl
             this.AccessRequestLabel = new System.Windows.Forms.LinkLabel();
             this.InformationLabel = new System.Windows.Forms.Label();
             this.RememberUserNameCheckBox = new System.Windows.Forms.CheckBox();
+            this.ConfigurationProgressBar = new System.Windows.Forms.ProgressBar();
+            this.ConfigurationStatusLabel = new System.Windows.Forms.Label();
             this.ConnectionStatusStrip.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -145,12 +147,12 @@ namespace DragnetControl
             this.InformationLabel.BackColor = System.Drawing.Color.Transparent;
             this.InformationLabel.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.InformationLabel.ForeColor = System.Drawing.Color.Cyan;
-            this.InformationLabel.Location = new System.Drawing.Point(182, 295);
+            this.InformationLabel.Location = new System.Drawing.Point(182, 281);
             this.InformationLabel.Name = "InformationLabel";
             this.InformationLabel.Size = new System.Drawing.Size(119, 14);
             this.InformationLabel.TabIndex = 9;
             this.InformationLabel.Text = "Enter Credentials:";
-            // 
+            //
             // RememberUserNameCheckBox
             // 
             this.RememberUserNameCheckBox.AutoSize = true;
@@ -163,14 +165,36 @@ namespace DragnetControl
             this.RememberUserNameCheckBox.TabIndex = 10;
             this.RememberUserNameCheckBox.Text = "Remember Username";
             this.RememberUserNameCheckBox.UseVisualStyleBackColor = false;
-            // 
+            //
+            // ConfigurationProgressBar
+            //
+            this.ConfigurationProgressBar.Location = new System.Drawing.Point(34, 306);
+            this.ConfigurationProgressBar.Name = "ConfigurationProgressBar";
+            this.ConfigurationProgressBar.Size = new System.Drawing.Size(442, 18);
+            this.ConfigurationProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
+            this.ConfigurationProgressBar.TabIndex = 11;
+            this.ConfigurationProgressBar.Visible = false;
+            //
+            // ConfigurationStatusLabel
+            //
+            this.ConfigurationStatusLabel.AutoSize = true;
+            this.ConfigurationStatusLabel.BackColor = System.Drawing.Color.Transparent;
+            this.ConfigurationStatusLabel.ForeColor = System.Drawing.Color.Cyan;
+            this.ConfigurationStatusLabel.Location = new System.Drawing.Point(34, 291);
+            this.ConfigurationStatusLabel.Name = "ConfigurationStatusLabel";
+            this.ConfigurationStatusLabel.Size = new System.Drawing.Size(0, 14);
+            this.ConfigurationStatusLabel.TabIndex = 12;
+            this.ConfigurationStatusLabel.Visible = false;
+            //
             // Authentication
-            // 
+            //
             this.AcceptButton = this.LoginButton;
             this.BackColor = System.Drawing.Color.White;
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.ClientSize = new System.Drawing.Size(511, 360);
+            this.Controls.Add(this.ConfigurationStatusLabel);
+            this.Controls.Add(this.ConfigurationProgressBar);
             this.Controls.Add(this.RememberUserNameCheckBox);
             this.Controls.Add(this.InformationLabel);
             this.Controls.Add(this.AccessRequestLabel);
@@ -207,5 +231,7 @@ namespace DragnetControl
         private System.Windows.Forms.LinkLabel AccessRequestLabel;
         private System.Windows.Forms.Label InformationLabel;
         private System.Windows.Forms.CheckBox RememberUserNameCheckBox;
+        private System.Windows.Forms.ProgressBar ConfigurationProgressBar;
+        private System.Windows.Forms.Label ConfigurationStatusLabel;
     }
 }
