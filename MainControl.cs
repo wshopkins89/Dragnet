@@ -9,11 +9,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Policy;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Windows.Forms;
 using System.Linq;
 using System.Net.Http;
@@ -1564,27 +1566,53 @@ namespace DragnetControl
         {
             if (IsLocalIP(ip))
             {
-                string cleaned = jsonPayload.Replace("\"", """).Replace(@"\", @"");
-                var scriptMatch = System.Text.RegularExpressions.Regex.Match(cleaned, ""script"\s*:\s*"([^"]+)"");
-                var argsMatch = System.Text.RegularExpressions.Regex.Match(cleaned, ""args"\s*:\s*\[(.*?)\]");
-                string script = scriptMatch.Success ? scriptMatch.Groups[1].Value : "";
-                var args = argsMatch.Success
-                    ? argsMatch.Groups[1].Value.Split(new[] { "","" }, StringSplitOptions.None).Select(a => a.Trim('"')).ToList()
-                    : new List<string>();
+                CommandPayload? payload;
+                try
+                {
+                    payload = JsonSerializer.Deserialize<CommandPayload>(jsonPayload, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                }
+                catch (JsonException ex)
+                {
+                    BeginInvoke(new Action(() =>
+                        MessageBox.Show($"Failed to parse command payload: {ex.Message}", "Script Launch Error")));
+                    return;
+                }
 
-                string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, script);
-                string argLine = string.Join(" ", args.Select(a => $""{a}""));
+                if (payload is null || string.IsNullOrWhiteSpace(payload.Script))
+                {
+                    BeginInvoke(new Action(() =>
+                        MessageBox.Show("Missing script information in payload.", "Script Launch Error")));
+                    return;
+                }
+
+                var args = payload.Arguments ?? new List<string>();
+                string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, payload.Script);
+
+                if (!File.Exists(exePath))
+                {
+                    BeginInvoke(new Action(() =>
+                        MessageBox.Show($"Script not found at path: {exePath}", "Script Launch Error")));
+                    return;
+                }
 
                 try
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo
+                    var psi = new ProcessStartInfo
                     {
-                        FileName = "cmd.exe",
-                        Arguments = $"/k "{exePath} {argLine}"",
-                        UseShellExecute = true,
+                        FileName = exePath,
+                        UseShellExecute = false,
                         CreateNoWindow = false,
                         WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
                     };
+
+                    foreach (var argument in args)
+                    {
+                        psi.ArgumentList.Add(argument);
+                    }
+
                     Process.Start(psi);
                 }
                 catch (Exception ex)
@@ -1597,6 +1625,15 @@ namespace DragnetControl
 
             string url = $"http://{ip}:5005/run";
             await PostJsonAsync(url, jsonPayload, cancellationToken).ConfigureAwait(false);
+        }
+
+        private sealed class CommandPayload
+        {
+            [JsonPropertyName("script")]
+            public string? Script { get; set; }
+
+            [JsonPropertyName("args")]
+            public List<string>? Arguments { get; set; }
         }
 
         // --- Utility: implement this to get the correct delay or other DB values ---
