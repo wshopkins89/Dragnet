@@ -1,20 +1,25 @@
-﻿using System.Security.Cryptography;
+using System;
+using System.Security.Cryptography;
 using System.Text;
-using YourNamespace;
+using System.Windows.Forms;
+using DragnetControl.Infrastructure.Configuration;
 using MySqlConnector;
 
 namespace DragnetControl
 {
     public partial class Authentication : Form
     {
+        private readonly DatabaseSettings _databaseSettings;
+
         public Authentication()
+            : this(DatabaseSettings.Current)
         {
+        }
+
+        internal Authentication(DatabaseSettings databaseSettings)
+        {
+            _databaseSettings = databaseSettings ?? throw new ArgumentNullException(nameof(databaseSettings));
             InitializeComponent();
-            GlobalVariables.UsersDBIP = "localhost";
-            GlobalVariables.UsersDBUsername = "dragnet";
-            GlobalVariables.usersdbPW = "dragnet5";
-            GlobalVariables.UsersDBConnect =
-                $"server={GlobalVariables.UsersDBIP};uid={GlobalVariables.UsersDBUsername};password={GlobalVariables.usersdbPW};database=userdata";
         }
 
         private string passwordAttempt;
@@ -23,7 +28,7 @@ namespace DragnetControl
         {
             dbError = false;
 
-            using (var conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (var conn = new MySqlConnection(_databaseSettings.UsersConnectionString))
             {
                 try
                 {
@@ -112,7 +117,7 @@ namespace DragnetControl
         {
             try
             {
-                using (var conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+                using (var conn = new MySqlConnection(_databaseSettings.UsersConnectionString))
                 {
                     conn.Open();
                     toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;

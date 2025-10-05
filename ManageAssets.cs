@@ -3,22 +3,19 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using MySqlConnector;
+using DragnetControl.Infrastructure.Configuration;
 
 namespace DragnetControl
 {
     public partial class ManageAssets : Form
     {
-        string AssetDBConnect = $"server={GlobalVariables.assetIP};uid={GlobalVariables.assetUser};pwd={GlobalVariables.assetPW};database={GlobalVariables.assetDBName}";
-
         public ManageAssets()
         {
             InitializeComponent();
-            using (MySqlConnection connection = new MySqlConnection(AssetDBConnect))
+            var assetDbConnect = DatabaseSettings.Current.AssetConnectionString;
+            using (MySqlConnection connection = new MySqlConnection(assetDbConnect))
             {
                 MySqlCommand command = new MySqlCommand("SELECT asset, commonname, market, active FROM stocks ORDER BY asset ASC", connection);
                 DataTable dataTable = new DataTable();

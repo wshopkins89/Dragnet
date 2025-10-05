@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 using Org.BouncyCastle.Asn1.Mozilla;
+using DragnetControl.Infrastructure.Configuration;
 
 namespace DragnetControl
 {
@@ -53,7 +54,7 @@ namespace DragnetControl
             }
 
             // Check for existing IP
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 string checkSql = "SELECT COUNT(*) FROM dragnet_nodes WHERE ip_address = @ip";

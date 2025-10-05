@@ -1,4 +1,5 @@
-﻿
+using DragnetControl.Infrastructure.Configuration;
+
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using Microsoft.VisualBasic.Devices;
@@ -416,7 +417,7 @@ namespace DragnetControl
             (int cpuscore, int ramscore) = GetResourceScores();
             bool enabled = true;
 
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
 
@@ -486,7 +487,7 @@ namespace DragnetControl
             Setup_Host_Node();
             tabControl1.TabPages.Clear();
 
-            using var conn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             try
             {
                 conn.Open();
@@ -605,7 +606,7 @@ namespace DragnetControl
                 int newRamScore = int.TryParse(ramScoreBox.SelectedItem?.ToString(), out var r) ? r : 0;
                 bool newEnabled = enabledBox.Checked;
 
-                using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string sql = @"UPDATE dragnet_nodes SET
@@ -827,7 +828,7 @@ namespace DragnetControl
         {
             string query = "SELECT status FROM dragnet_nodes WHERE ip_address = @ip";
 
-            using var conn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             conn.Open();
 
             using var cmd = new MySqlCommand(query, conn);
@@ -841,7 +842,7 @@ namespace DragnetControl
         }
         private void LoadCryptoAssetDatabase()
         {
-            var conn = new MySqlConnection(GlobalVariables.AssetDBConnect);
+            var conn = new MySqlConnection(DatabaseSettings.Current.AssetConnectionString);
             string query = "SELECT * FROM assets.crypto";
             adapter = new MySqlDataAdapter(query, conn);
             MySqlCommandBuilder builder = new MySqlCommandBuilder(adapter);
@@ -946,7 +947,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.DragnetDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.DragnetConnectionString))
                 {
                     conn.Open();
                     string query = "SHOW TABLES;";
@@ -1016,7 +1017,7 @@ namespace DragnetControl
         private void autoDelegateButton_Click(object sender, EventArgs e)
         {
             WipeDragnetControlTables();
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 var cmd = new MySqlCommand("SELECT ip_address, username, password, port, enabled FROM dragnet_nodes", conn);
@@ -1081,7 +1082,7 @@ namespace DragnetControl
                 }
             }
             System.Threading.Thread.Sleep(3000);
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 var cmd = new MySqlCommand("SELECT ip_address, hostname, cpu_score, ram_score FROM dragnet_nodes", conn);
@@ -1150,7 +1151,7 @@ namespace DragnetControl
             }
             // Step 2: Retrieve all assets
             List<string> assetNames = new List<string>();
-            using (var assetConn = new MySqlConnection(GlobalVariables.AssetDBConnect))
+            using (var assetConn = new MySqlConnection(DatabaseSettings.Current.AssetConnectionString))
             {
                 assetConn.Open();
                 using var assetCmd = new MySqlCommand("SELECT name FROM crypto ORDER BY name ASC;", assetConn);
@@ -1201,7 +1202,7 @@ namespace DragnetControl
             double cryptoDelay = 1.0 / ((coinbaseQps * safety) / Math.Max(1, activeCryptoScanners));
 
             // --- Update users table (example: set for current/active user, or for all) ---
-            using (var userConn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (var userConn = new MySqlConnection(DatabaseSettings.Current.UsersConnectionString))
             {
                 userConn.Open();
                 // Update CryptoDelay
@@ -1436,7 +1437,7 @@ namespace DragnetControl
             float cryptoDelay = GlobalVariables.CryptoDelay;
 
 
-            using (var userConn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (var userConn = new MySqlConnection(DatabaseSettings.Current.UsersConnectionString))
             {
                 userConn.Open();
                 var cmd = new MySqlCommand("SELECT CryptoDelay FROM users WHERE username = @username LIMIT 1", userConn);
@@ -1746,7 +1747,7 @@ namespace DragnetControl
             string ip = tabText.Substring(parenStart + 1, parenEnd - parenStart - 1).Trim();
 
             // 4. Delete from database
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 string sql = "DELETE FROM dragnet_nodes WHERE ip_address = @ip";
@@ -1771,7 +1772,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT * FROM dragnet_locks ORDER BY asset_name;";
@@ -1803,7 +1804,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT curator_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM curator_modules ORDER BY node_ip;";
@@ -1853,7 +1854,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT scanner_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM scanner_modules ORDER BY node_ip;";
@@ -1905,7 +1906,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT Obscanner_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM orderbook_modules ORDER BY node_ip;";
@@ -1956,7 +1957,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT newsscraper_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM newsscraper_modules ORDER BY node_ip;";
@@ -1995,7 +1996,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT telegramscanner_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM telegramscanner_modules ORDER BY node_ip;";
@@ -2034,7 +2035,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT daemon_id, node_ip, status, last_heartbeat FROM daemon_modules ORDER BY node_ip;";
@@ -2110,7 +2111,7 @@ namespace DragnetControl
             DataTable dt = new DataTable();
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     string query = "SELECT * FROM module_logs ORDER BY timestamp;";
@@ -2159,7 +2160,7 @@ namespace DragnetControl
 
             try
             {
-                using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
                 {
                     conn.Open();
                     foreach (string table in tables)
@@ -2210,7 +2211,7 @@ namespace DragnetControl
 
         private void LoadDragnetTable(string tableName)
         {
-            var conn = new MySqlConnection(GlobalVariables.DragnetDBConnect);
+            var conn = new MySqlConnection(DatabaseSettings.Current.DragnetConnectionString);
             string query = $"SELECT * FROM `{tableName}` ORDER BY timestamp DESC LIMIT 33";
             dragnetAdapter = new MySqlDataAdapter(query, conn);
             dragnetBuilder = new MySqlCommandBuilder(dragnetAdapter);
@@ -2247,7 +2248,7 @@ namespace DragnetControl
 
             if (confirmResult != DialogResult.Yes) return;
 
-            using (var conn = new MySqlConnection(GlobalVariables.DragnetDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.DragnetConnectionString))
             {
                 conn.Open();
                 int updateCount = 0;
@@ -2337,7 +2338,7 @@ namespace DragnetControl
         {
             List<string> nodeIPs = new List<string>();
 
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 string sql = "SELECT ip_address FROM dragnet_nodes WHERE enabled = 1;";
@@ -2487,7 +2488,7 @@ namespace DragnetControl
             sb.Append("]");
             string calendarDatesJson = sb.ToString();
 
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 string query = @"
@@ -2516,7 +2517,7 @@ namespace DragnetControl
 
             DataTable table = new DataTable();
 
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
 
@@ -2632,7 +2633,7 @@ namespace DragnetControl
             if (result != DialogResult.Yes)
                 return;
 
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            using (var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString))
             {
                 conn.Open();
                 string query = @"DELETE FROM dragnet_schedule WHERE script_type = @type AND trigger_time = @time LIMIT 1;";
@@ -2827,7 +2828,7 @@ namespace DragnetControl
         private List<ScheduleRow> LoadScheduleRows()
         {
             var list = new List<ScheduleRow>();
-            using var conn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var conn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             conn.Open();
             const string sql = "SELECT script_type, trigger_time, days_of_week, calendar_dates FROM dragnet_schedule;";
             using var cmd = new MySqlCommand(sql, conn);
@@ -2991,7 +2992,7 @@ namespace DragnetControl
 
             async Task SaveGlobalsToDbAsync(string hostVal, string portVal, string modelVal, int context)
             {
-                using var cn = new MySql.Data.MySqlClient.MySqlConnection(GlobalVariables.UsersDBConnect);
+                using var cn = new MySql.Data.MySqlClient.MySqlConnection(DatabaseSettings.Current.UsersConnectionString);
                 await cn.OpenAsync();
 
                 // Update by username; insert if not present
@@ -3237,7 +3238,7 @@ ORDER BY name ASC, updated_at DESC;";
 
             var where = string.IsNullOrWhiteSpace(filter) ? "" : "WHERE name LIKE @q OR version LIKE @q";
 
-            using var cn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var cn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             await cn.OpenAsync();
             using var cmd = new MySqlCommand(sqlBase.Replace("/**where**/", where), cn);
             if (!string.IsNullOrWhiteSpace(filter))
@@ -3287,7 +3288,7 @@ FROM dragnetcontrol.prompt_registry
 WHERE name=@n AND version=@v
 LIMIT 1;";
 
-            using var cn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var cn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             await cn.OpenAsync();
             using var cmd = new MySqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@n", it.Name);
@@ -3324,7 +3325,7 @@ FROM dragnetcontrol.prompt_registry
 WHERE name=@n AND version=@v
 LIMIT 1;";
 
-            using var cn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var cn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             await cn.OpenAsync();
             using var cmd = new MySqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@n", name);
@@ -3372,7 +3373,7 @@ ON DUPLICATE KEY UPDATE
   created_by  = VALUES(created_by),
   updated_at  = CURRENT_TIMESTAMP;";
 
-            using var cn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var cn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             await cn.OpenAsync();
             using var tx = await cn.BeginTransactionAsync();
 
@@ -3436,7 +3437,7 @@ ON DUPLICATE KEY UPDATE
             if (confirm != DialogResult.OK) return;
 
             const string sql = @"DELETE FROM dragnetcontrol.prompt_registry WHERE name=@n AND version=@v;";
-            using var cn = new MySqlConnection(GlobalVariables.ControlDBConnect);
+            using var cn = new MySqlConnection(DatabaseSettings.Current.ControlConnectionString);
             await cn.OpenAsync();
             using var cmd = new MySqlCommand(sql, cn);
             cmd.Parameters.AddWithValue("@n", name);
@@ -3489,7 +3490,7 @@ LIMIT 1;";
 
             try
             {
-                using var cn = new MySql.Data.MySqlClient.MySqlConnection(GlobalVariables.UsersDBConnect);
+                using var cn = new MySql.Data.MySqlClient.MySqlConnection(DatabaseSettings.Current.UsersConnectionString);
                 await cn.OpenAsync();
 
                 using var cmd = new MySql.Data.MySqlClient.MySqlCommand(updateSql, cn)

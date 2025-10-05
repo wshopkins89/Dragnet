@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -12,6 +12,7 @@ using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 using System.Xml.Linq;
 using MySql.Data.MySqlClient;
+using DragnetControl.Infrastructure.Configuration;
 
 namespace DragnetControl
 {
@@ -21,13 +22,13 @@ namespace DragnetControl
         {
             InitializeComponent();
             LoadBalanceOfPowerImages(pictureBoxHouse, pictureBoxSenate);
-            SearchPoliticians(GlobalVariables.AssetDBConnect, searchTextBox, politiciansListBox, representativesCheckBox, senatorsCheckBox, republicansCheckBox, democratCheckBox, otherCheckBox);
+            SearchPoliticians(DatabaseSettings.Current.AssetConnectionString, searchTextBox, politiciansListBox, representativesCheckBox, senatorsCheckBox, republicansCheckBox, democratCheckBox, otherCheckBox);
             
         }
 
         private void searchButton_Click(object sender, EventArgs e)
         {
-            SearchPoliticians(GlobalVariables.AssetDBConnect, searchTextBox, politiciansListBox, representativesCheckBox, senatorsCheckBox, republicansCheckBox, democratCheckBox, otherCheckBox);
+            SearchPoliticians(DatabaseSettings.Current.AssetConnectionString, searchTextBox, politiciansListBox, representativesCheckBox, senatorsCheckBox, republicansCheckBox, democratCheckBox, otherCheckBox);
         }
         private void SearchPoliticians(string connectionString, TextBox searchTextBox, ListBox listBox, CheckBox representativesCheckBox, CheckBox senatorsCheckBox, CheckBox republicanCheckBox, CheckBox democratCheckBox, CheckBox otherCheckBox)
         {
@@ -185,7 +186,7 @@ namespace DragnetControl
             if (politiciansListBox.SelectedIndex != -1)
             {
                 string selectedPolitician = politiciansListBox.SelectedItem.ToString();
-                using (MySqlConnection connection = new MySqlConnection(GlobalVariables.AssetDBConnect))
+                using (MySqlConnection connection = new MySqlConnection(DatabaseSettings.Current.AssetConnectionString))
                 {
                     string query = "SELECT * FROM politicians WHERE Name = @Name";
                     MySqlCommand cmd = new MySqlCommand(query, connection);
@@ -237,7 +238,7 @@ namespace DragnetControl
             string tableName = politicianName.ToLower().Replace(' ', '_');
             string query = $"SELECT issuer,publisheddate, tradeddate, daystofile, owner, type, size, price FROM Politicians.`{tableName}`";
 
-            using (MySqlConnection connection = new MySqlConnection(GlobalVariables.AssetDBConnect))
+            using (MySqlConnection connection = new MySqlConnection(DatabaseSettings.Current.AssetConnectionString))
             {
                 try
                 {

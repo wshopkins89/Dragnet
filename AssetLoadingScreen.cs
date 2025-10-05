@@ -1,4 +1,5 @@
-﻿using MySqlConnector;
+using MySqlConnector;
+using DragnetControl.Infrastructure.Configuration;
 
 
 namespace DragnetControl
@@ -20,7 +21,8 @@ namespace DragnetControl
 
         private void LoadUserSettings()
         {
-            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            var databaseSettings = DatabaseSettings.Current;
+            using (MySqlConnection conn = new MySqlConnection(databaseSettings.UsersConnectionString))
             {
                 try
                 {
@@ -280,10 +282,6 @@ namespace DragnetControl
                                     GlobalVariables.ActiveLLMPromptVersion = reader.GetString("LLMPromptVersion");
                                     StatusLabel.Text = "Loading Active LLM Prompt Configuration: LLMPromptVersion";
 
-                                    GlobalVariables.DragnetDBConnect = $"server={GlobalVariables.DragnetDBIP};uid={GlobalVariables.DragnetDBUser};password={GlobalVariables.DragnetDBPassword};database={GlobalVariables.DragnetDBName}";
-                                    GlobalVariables.AssetDBConnect = $"server={GlobalVariables.assetIP};uid={GlobalVariables.assetUser};password={GlobalVariables.assetPW};database={GlobalVariables.assetDBName}";
-                                    GlobalVariables.NewsDBConnect = $"server={GlobalVariables.newsIP};uid={GlobalVariables.newsUser};password={GlobalVariables.newsPW};database=newsdata";
-                                    GlobalVariables.ControlDBConnect =$"server={GlobalVariables.DragnetControlIP};uid={GlobalVariables.DragnetControlUser};password={GlobalVariables.DragnetControlPassword};database={GlobalVariables.DragnetControlName}";
                                 }
                             }
                             else

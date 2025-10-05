@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Windows.Forms;
 using MySqlConnector;
+using DragnetControl.Infrastructure.Configuration;
 
 namespace DragnetControl
 {
@@ -25,7 +26,7 @@ namespace DragnetControl
 
         private void SaveButton_Click(object sender, EventArgs e)
         {
-            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.UsersConnectionString))
             {
                 int port1;
                 int port2;
@@ -90,7 +91,7 @@ namespace DragnetControl
 
         private void SaveandCloseButton_Click(object sender, EventArgs e)
         {
-            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.UsersConnectionString))
             {
                 int port1;
                 int port2;

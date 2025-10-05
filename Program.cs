@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using System.Configuration;
+using DragnetControl.Infrastructure.Configuration;
 
 namespace DragnetControl
 {
@@ -17,6 +15,20 @@ namespace DragnetControl
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            try
+            {
+                _ = DatabaseSettings.Current;
+            }
+            catch (ConfigurationErrorsException ex)
+            {
+                MessageBox.Show(
+                    $"Unable to load database configuration.\n\n{ex.Message}",
+                    "Configuration Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                return;
+            }
+
             Application.Run(new Authentication());
         }
     }
