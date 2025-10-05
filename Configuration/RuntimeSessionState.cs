@@ -1,6 +1,3 @@
-﻿using DragnetControl.Configuration;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
-using DragnetControl.Configuration;
 using System;
 
 namespace DragnetControl.Configuration
@@ -97,4 +94,3 @@ namespace DragnetControl.Configuration
         public string? ActiveSuffix { get; set; }
     }
 }
-

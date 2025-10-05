@@ -1,6 +1,5 @@
-﻿using DragnetControl.Configuration;
-
 using System;
+using System.Configuration;
 
 namespace DragnetControl.Configuration
 {
@@ -15,17 +14,26 @@ namespace DragnetControl.Configuration
 
         public static DragnetConfiguration FromAppConfig()
         {
-    var host = ReadSetting("DRAGNET_USERSDB_HOST") ?? "localhost";
-    var username = ReadSetting("DRAGNET_USERSDB_USER") ?? "dragnet";
-    var password = ReadSetting("DRAGNET_USERSDB_PASSWORD") ?? "dragnet5";
-    var database = ReadSetting("DRAGNET_USERSDB_NAME") ?? "userdata";
-    
-                return new DragnetConfiguration(new DatabaseCredentials(host, username, password, database));
-            }
+            var host = ReadSetting("DRAGNET_USERSDB_HOST") ?? ReadAppSetting("UsersDbHost") ?? "localhost";
+            var username = ReadSetting("DRAGNET_USERSDB_USER") ?? ReadAppSetting("UsersDbUser") ?? "dragnet";
+            var password = ReadSetting("DRAGNET_USERSDB_PASSWORD") ?? ReadAppSetting("UsersDbPassword") ?? "dragnet5";
+            var database = ReadSetting("DRAGNET_USERSDB_NAME") ?? ReadAppSetting("UsersDbName") ?? "userdata";
 
-        private static string? ReadSetting(string key)
+            return new DragnetConfiguration(new DatabaseCredentials(host, username, password, database));
+        }
+
+        private static string? ReadSetting(string key) => Environment.GetEnvironmentVariable(key);
+
+        private static string? ReadAppSetting(string key)
         {
-                return Environment.GetEnvironmentVariable(key);
+            try
+            {
+                return ConfigurationManager.AppSettings[key];
             }
+            catch (ConfigurationErrorsException)
+            {
+                return null;
+            }
+        }
     }
 }

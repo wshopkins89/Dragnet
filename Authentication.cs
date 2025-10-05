@@ -1,7 +1,11 @@
-﻿using System.Security.Cryptography;
+using System;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using DragnetControl.Configuration;
 using MySqlConnector;
+using BCryptNet = BCrypt.Net.BCrypt;
 
 namespace DragnetControl
 {
@@ -17,108 +21,97 @@ namespace DragnetControl
             InitializeComponent();
         }
 
-        private string passwordAttempt;
-
         private bool CheckCredentials(string username, string passwordAttempt, out bool dbError, out int accountStatus)
         {
             dbError = false;
             accountStatus = 0;
 
-            using (var conn = new MySqlConnection(_configuration.UsersDatabase.BuildConnectionString()))
+            using var conn = new MySqlConnection(_configuration.UsersDatabase.BuildConnectionString());
+            try
             {
-                try
+                conn.Open();
+
+                const string query = "SELECT * FROM users WHERE username = @username";
+                using var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@username", username);
+
+                using var reader = cmd.ExecuteReader();
+                if (!reader.HasRows)
                 {
-                    conn.Open();
-
-                    const string query = "SELECT * FROM users WHERE username = @username";
-                    using (var cmd = new MySqlCommand(query, conn))
-                    {
-                        // BUGFIX: bind the method parameter, not the global
-                        cmd.Parameters.AddWithValue("@username", username);
-
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            if (!reader.HasRows)
-                                return false;
-
-                            reader.Read();
-                            string storedPasswordHash = reader.GetString("password");
-
-                            // If not a BCrypt hash, treat as legacy/unsalted
-                            if (IsUnsaltedPassword(storedPasswordHash))
-                            {
-                                // If your legacy was plaintext:
-                                if (storedPasswordHash == passwordAttempt)
-                                {
-                                    // Force password change
-                                    using (var changePasswordForm = new PasswordChangeForm(username))
-                                    {
-                                        changePasswordForm.ShowDialog();
-                                    }
-                                    accountStatus = reader.GetInt32("accountstatus");
-                                    return true;
-                                }
-
-                                return false;
-                            }
-                            else
-                            {
-                                // BCrypt verification
-                                bool ok = BCrypt.Net.BCrypt.Verify(passwordAttempt, storedPasswordHash);
-                                if (ok)
-                                {
-                                    accountStatus = reader.GetInt32("accountstatus");
-                                    return true;
-                                }
-                                return false;
-                            }
-                        }
-                    }
-                }
-                catch (MySqlException ex)
-                {
-                    dbError = true;
-
-                    // POPUP on login attempt failure due to DB connectivity (or any MySQL error)
-                    MessageBox.Show(
-                        "Unable to connect to the Users database.\n\nDetails:\n" + ex.Message,
-                        "Database Connection Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error
-                    );
-
                     return false;
                 }
+
+                reader.Read();
+                var storedPasswordHash = reader.GetString("password");
+                var status = reader.GetInt32("accountstatus");
+
+                if (IsUnsaltedPassword(storedPasswordHash))
+                {
+                    if (!VerifyUnsaltedPassword(passwordAttempt, storedPasswordHash))
+                    {
+                        return false;
+                    }
+
+                    accountStatus = status;
+
+                    if (accountStatus == 1 || accountStatus == 2)
+                    {
+                        using var changePasswordForm = new PasswordChangeForm(username, _configuration.UsersDatabase);
+                        changePasswordForm.ShowDialog();
+                    }
+
+                    return true;
+                }
+
+                var isValid = BCryptNet.Verify(passwordAttempt, storedPasswordHash);
+                if (isValid)
+                {
+                    accountStatus = status;
+                }
+
+                return isValid;
             }
-        }
-
-        // Helper: consider non-BCrypt (not $2*) and not length 60 as "unsalted/legacy"
-        private bool IsUnsaltedPassword(string storedPassword)
-        {
-            return !storedPassword.StartsWith("$2") || storedPassword.Length != 60;
-        }
-
-        private bool VerifyUnsaltedPassword(string passwordAttempt, string storedPassword)
-        {
-            using (MD5 md5 = MD5.Create())
+            catch (MySqlException ex)
             {
-                byte[] inputBytes = Encoding.ASCII.GetBytes(passwordAttempt);
-                byte[] hashBytes = md5.ComputeHash(inputBytes);
-                string hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-                return hash == storedPassword;
+                dbError = true;
+
+                MessageBox.Show(
+                    "Unable to connect to the Users database.\n\nDetails:\n" + ex.Message,
+                    "Database Connection Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                return false;
             }
+        }
+
+        private static bool IsUnsaltedPassword(string storedPassword)
+        {
+            return !storedPassword.StartsWith("$2", StringComparison.Ordinal) || storedPassword.Length != 60;
+        }
+
+        private static bool VerifyUnsaltedPassword(string passwordAttempt, string storedPassword)
+        {
+            if (storedPassword.Equals(passwordAttempt, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            using var md5 = MD5.Create();
+            var inputBytes = Encoding.ASCII.GetBytes(passwordAttempt);
+            var hashBytes = md5.ComputeHash(inputBytes);
+            var hash = BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
+            return hash == storedPassword.ToLowerInvariant();
         }
 
         private void Authentication_Load(object sender, EventArgs e)
         {
             try
             {
-                using (var conn = new MySqlConnection(_configuration.UsersDatabase.BuildConnectionString()))
-                {
-                    conn.Open();
-                    toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;
-                    toolStripStatusLabel1.Text = "User Database Connection Established";
-                }
+                using var conn = new MySqlConnection(_configuration.UsersDatabase.BuildConnectionString());
+                conn.Open();
+                toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;
+                toolStripStatusLabel1.Text = "User Database Connection Established";
             }
             catch (MySqlException)
             {
@@ -127,22 +120,18 @@ namespace DragnetControl
             }
         }
 
-        private void LoginButton_Click(object sender, EventArgs e)
+        private async void LoginButton_Click(object sender, EventArgs e)
         {
-            string username = UsernameBox.Text;
-            passwordAttempt = PasswordBox.Text;
+            var username = UsernameBox.Text;
+            var passwordAttempt = PasswordBox.Text;
 
-            bool dbError;
-            int accountStatus;
-            bool ok = CheckCredentials(username, passwordAttempt, out dbError, out accountStatus);
+            var ok = CheckCredentials(username, passwordAttempt, out var dbError, out var accountStatus);
 
             if (dbError)
             {
-                // We already showed a MessageBox in CheckCredentials.
-                // Make the UI reflect the failure state:
                 InformationLabel.ForeColor = System.Drawing.Color.Red;
                 InformationLabel.Text = "Database connection failed.";
-                PasswordBox.Text = "";
+                PasswordBox.Text = string.Empty;
                 return;
             }
 
@@ -152,41 +141,21 @@ namespace DragnetControl
                 {
                     InformationLabel.ForeColor = System.Drawing.Color.Red;
                     InformationLabel.Text = "Account Locked/Suspended.";
-                    PasswordBox.Text = "";
+                    PasswordBox.Text = string.Empty;
+                    return;
                 }
-                else if (accountStatus == 1 || accountStatus == 2)
-                {
-                    InformationLabel.ForeColor = System.Drawing.Color.Black;
-                    InformationLabel.Text = "Login Successful. Loading configuration files.";
-                    PasswordBox.Text = "";
-                    AccessRequestLabel.Hide();
-                    this.Hide();
 
-                    using (var assetLoad = new AssetLoadingScreen(_configurationLoader, username))
-                    {
-                        assetLoad.ShowDialog();
-                        if (assetLoad.DialogResult == DialogResult.OK)
-                        {
-                            var sessionState = assetLoad.SessionState;
-                            GlobalVariables.Initialize(_configuration, sessionState);
-                            FormManager.Configure(() => new MainControl());
-                            var mainControl = FormManager.MainControl;
-                            mainControl.FormClosed += MainControl_FormClosed;
-                            mainControl.Show();
-                        }
-                        else
-                        {
-                            Show();
-                        }
-                    }
+                if (accountStatus == 1 || accountStatus == 2)
+                {
+                    await LoadConfigurationAndLaunchAsync(username).ConfigureAwait(true);
                 }
+
+                return;
             }
-            else
-            {
-                InformationLabel.ForeColor = System.Drawing.Color.Red;
-                InformationLabel.Text = "Invalid username or password.";
-                PasswordBox.Text = "";
-            }
+
+            InformationLabel.ForeColor = System.Drawing.Color.Red;
+            InformationLabel.Text = "Invalid username or password.";
+            PasswordBox.Text = string.Empty;
         }
 
         private void ExitButton_Click(object sender, EventArgs e)
@@ -194,24 +163,97 @@ namespace DragnetControl
             Application.Exit();
         }
 
-        private void MainControl_FormClosed(object sender, FormClosedEventArgs e)
+        private void MainControl_FormClosed(object? sender, FormClosedEventArgs e)
         {
             if (RememberUserNameCheckBox.Checked)
             {
-                PasswordBox.Text = "";
+                PasswordBox.Text = string.Empty;
             }
             else
             {
-                UsernameBox.Text = "";
-                PasswordBox.Text = "";
+                UsernameBox.Text = string.Empty;
+                PasswordBox.Text = string.Empty;
             }
+
             InformationLabel.Text = "Enter Credentials:";
             AccessRequestLabel.Show();
-            this.Show();
+            ToggleLoginControls(true);
+            ShowLoadingIndicators(false);
+            Show();
         }
 
         private void ConnectionStatusStrip_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
+        }
+
+        private async Task LoadConfigurationAndLaunchAsync(string username)
+        {
+            InformationLabel.ForeColor = System.Drawing.Color.Black;
+            InformationLabel.Text = "Login Successful. Loading configuration files.";
+            PasswordBox.Text = string.Empty;
+            AccessRequestLabel.Hide();
+            ToggleLoginControls(false);
+            ShowLoadingIndicators(true);
+
+            try
+            {
+                var progress = new Progress<ConfigurationProgress>(UpdateConfigurationProgress);
+                var sessionState = await _configurationLoader.LoadAsync(username, progress).ConfigureAwait(true);
+                GlobalVariables.Initialize(_configuration, sessionState);
+                FormManager.Configure(() => new MainControl());
+                var mainControl = FormManager.MainControl;
+                mainControl.FormClosed += MainControl_FormClosed;
+                Hide();
+                ShowLoadingIndicators(false);
+                ToggleLoginControls(true);
+                mainControl.Show();
+            }
+            catch (Exception ex)
+            {
+                ShowLoadingIndicators(false);
+                ToggleLoginControls(true);
+                AccessRequestLabel.Show();
+                InformationLabel.ForeColor = System.Drawing.Color.Red;
+                InformationLabel.Text = "Failed to load configuration.";
+                MessageBox.Show(
+                    this,
+                    $"Unable to load configuration data.\n\nDetails:\n{ex.Message}",
+                    "Configuration Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void ToggleLoginControls(bool enabled)
+        {
+            LoginButton.Enabled = enabled;
+            ExitButton.Enabled = enabled;
+            UsernameBox.Enabled = enabled;
+            PasswordBox.Enabled = enabled;
+            RememberUserNameCheckBox.Enabled = enabled;
+            AccessRequestLabel.Enabled = enabled;
+        }
+
+        private void ShowLoadingIndicators(bool visible)
+        {
+            ConfigurationProgressBar.Visible = visible;
+            ConfigurationStatusLabel.Visible = visible;
+            if (visible)
+            {
+                ConfigurationProgressBar.Value = ConfigurationProgressBar.Minimum;
+                ConfigurationStatusLabel.Text = "Preparing configuration...";
+            }
+            else
+            {
+                ConfigurationStatusLabel.Text = string.Empty;
+            }
+        }
+
+        private void UpdateConfigurationProgress(ConfigurationProgress progress)
+        {
+            var value = Math.Max(ConfigurationProgressBar.Minimum, Math.Min(ConfigurationProgressBar.Maximum, progress.Value));
+            ConfigurationProgressBar.Value = value;
+            ConfigurationStatusLabel.Text = progress.Message;
         }
     }
 }
