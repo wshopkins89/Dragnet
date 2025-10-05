@@ -1569,12 +1569,12 @@ namespace DragnetControl
                 CommandPayload? payload;
                 try
                 {
-                    payload = JsonSerializer.Deserialize<CommandPayload>(jsonPayload, new JsonSerializerOptions
+                    payload = System.Text.Json.JsonSerializer.Deserialize<CommandPayload>(jsonPayload, new JsonSerializerOptions
                     {
                         PropertyNameCaseInsensitive = true
                     });
                 }
-                catch (JsonException ex)
+                catch (System.Text.Json.JsonException ex)
                 {
                     BeginInvoke(new Action(() =>
                         MessageBox.Show($"Failed to parse command payload: {ex.Message}", "Script Launch Error")));
