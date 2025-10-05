@@ -1,7 +1,6 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using DragnetControl.Configuration;
 using MySqlConnector;
@@ -43,30 +42,24 @@ namespace DragnetControl
 
                 reader.Read();
                 var storedPasswordHash = reader.GetString("password");
-                var status = reader.GetInt32("accountstatus");
 
                 if (IsUnsaltedPassword(storedPasswordHash))
                 {
-                    if (!VerifyUnsaltedPassword(passwordAttempt, storedPasswordHash))
-                    {
-                        return false;
-                    }
-
-                    accountStatus = status;
-
-                    if (accountStatus == 1 || accountStatus == 2)
+                    if (VerifyUnsaltedPassword(passwordAttempt, storedPasswordHash))
                     {
                         using var changePasswordForm = new PasswordChangeForm(username, _configuration.UsersDatabase);
                         changePasswordForm.ShowDialog();
+                        accountStatus = reader.GetInt32("accountstatus");
+                        return true;
                     }
 
-                    return true;
+                    return false;
                 }
 
                 var isValid = BCryptNet.Verify(passwordAttempt, storedPasswordHash);
                 if (isValid)
                 {
-                    accountStatus = status;
+                    accountStatus = reader.GetInt32("accountstatus");
                 }
 
                 return isValid;
@@ -147,7 +140,27 @@ namespace DragnetControl
 
                 if (accountStatus == 1 || accountStatus == 2)
                 {
-                    await LoadConfigurationAndLaunchAsync(username).ConfigureAwait(true);
+                    InformationLabel.ForeColor = System.Drawing.Color.Black;
+                    InformationLabel.Text = "Login Successful. Loading configuration files.";
+                    PasswordBox.Text = string.Empty;
+                    AccessRequestLabel.Hide();
+                    Hide();
+
+                    using var assetLoad = new AssetLoadingScreen(_configurationLoader, username);
+                    assetLoad.ShowDialog();
+                    if (assetLoad.DialogResult == DialogResult.OK)
+                    {
+                        var sessionState = assetLoad.SessionState;
+                        GlobalVariables.Initialize(_configuration, sessionState);
+                        FormManager.Configure(() => new MainControl());
+                        var mainControl = FormManager.MainControl;
+                        mainControl.FormClosed += MainControl_FormClosed;
+                        mainControl.Show();
+                    }
+                    else
+                    {
+                        Show();
+                    }
                 }
 
                 return;
@@ -177,8 +190,6 @@ namespace DragnetControl
 
             InformationLabel.Text = "Enter Credentials:";
             AccessRequestLabel.Show();
-            ToggleLoginControls(true);
-            ShowLoadingIndicators(false);
             Show();
         }
 
