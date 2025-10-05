@@ -215,19 +215,7 @@ namespace DragnetControl.Configuration
                 throw new InvalidOperationException($"Column '{column}' contained NULL but a value was required.");
             }
 
-            var value = reader.GetValue(ordinal);
-            if (value is string stringValue)
-            {
-                return stringValue;
-            }
-
-            var converted = Convert.ToString(value, CultureInfo.InvariantCulture);
-            if (converted == null)
-            {
-                throw new InvalidOperationException($"Column '{column}' did not contain a string value.");
-            }
-
-            return converted;
+            return reader.GetString(ordinal);
         }
 
         private static string? GetOptionalString(MySqlDataReader reader, string column)
@@ -237,13 +225,7 @@ namespace DragnetControl.Configuration
                 return null;
             }
 
-            if (reader.IsDBNull(ordinal))
-            {
-                return null;
-            }
-
-            var value = reader.GetValue(ordinal);
-            return Convert.ToString(value, CultureInfo.InvariantCulture);
+            return reader.IsDBNull(ordinal) ? null : reader.GetString(ordinal);
         }
 
         private static int GetInt32(MySqlDataReader reader, string column)
@@ -253,13 +235,7 @@ namespace DragnetControl.Configuration
                 return 0;
             }
 
-            if (reader.IsDBNull(ordinal))
-            {
-                return 0;
-            }
-
-            var value = reader.GetValue(ordinal);
-            return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            return reader.IsDBNull(ordinal) ? 0 : reader.GetInt32(ordinal);
         }
 
         private static int? GetNullableInt32(MySqlDataReader reader, string column)
@@ -269,13 +245,7 @@ namespace DragnetControl.Configuration
                 return null;
             }
 
-            if (reader.IsDBNull(ordinal))
-            {
-                return null;
-            }
-
-            var value = reader.GetValue(ordinal);
-            return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            return reader.IsDBNull(ordinal) ? null : reader.GetInt32(ordinal);
         }
 
         private static float GetFloat(MySqlDataReader reader, string column)
@@ -285,13 +255,7 @@ namespace DragnetControl.Configuration
                 return 0f;
             }
 
-            if (reader.IsDBNull(ordinal))
-            {
-                return 0f;
-            }
-
-            var value = reader.GetValue(ordinal);
-            return Convert.ToSingle(value, CultureInfo.InvariantCulture);
+            return reader.IsDBNull(ordinal) ? 0 : reader.GetFloat(ordinal);
         }
 
         private static decimal GetDecimal(MySqlDataReader reader, string column)
@@ -301,13 +265,7 @@ namespace DragnetControl.Configuration
                 return 0m;
             }
 
-            if (reader.IsDBNull(ordinal))
-            {
-                return 0m;
-            }
-
-            var value = reader.GetValue(ordinal);
-            return Convert.ToDecimal(value, CultureInfo.InvariantCulture);
+            return reader.IsDBNull(ordinal) ? 0 : reader.GetDecimal(ordinal);
         }
 
         private static bool TryGetOrdinal(MySqlDataReader reader, string column, out int ordinal)

@@ -1,6 +1,4 @@
 using System;
-using System.Security.Cryptography;
-using System.Text;
 using System.Windows.Forms;
 using DragnetControl.Configuration;
 using MySqlConnector;
@@ -60,9 +58,9 @@ namespace DragnetControl
                 reader.Read();
                 var storedPasswordHash = reader.GetString("Password");
 
-                var isVerified = IsBcryptHash(storedPasswordHash)
+                var isVerified = storedPasswordHash.StartsWith("$2", StringComparison.Ordinal) && storedPasswordHash.Length == 60
                     ? BCryptNet.Verify(oldPassword, storedPasswordHash)
-                    : VerifyUnsaltedPassword(oldPassword, storedPasswordHash);
+                    : string.Equals(oldPassword, storedPasswordHash, StringComparison.Ordinal);
 
                 if (!isVerified)
                 {
@@ -99,25 +97,6 @@ namespace DragnetControl
         private void CloseLabel_Click(object sender, EventArgs e)
         {
             Close();
-        }
-
-        private static bool IsBcryptHash(string storedPassword)
-        {
-            return storedPassword.StartsWith("$2", StringComparison.Ordinal) && storedPassword.Length == 60;
-        }
-
-        private static bool VerifyUnsaltedPassword(string passwordAttempt, string storedPassword)
-        {
-            if (string.Equals(passwordAttempt, storedPassword, StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            using var md5 = MD5.Create();
-            var inputBytes = Encoding.ASCII.GetBytes(passwordAttempt);
-            var hashBytes = md5.ComputeHash(inputBytes);
-            var hash = BitConverter.ToString(hashBytes).Replace("-", string.Empty).ToLowerInvariant();
-            return hash == storedPassword.ToLowerInvariant();
         }
     }
 }
