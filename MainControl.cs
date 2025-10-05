@@ -1002,7 +1002,7 @@ namespace DragnetControl
         }
         private async void regenDatabasesButton_Click(object sender, EventArgs e)
         {
-            SetControlEnabled(regenDatabasesButton, false);
+            SetControlEnabled(regenButton, false);
 
             try
             {
@@ -1032,7 +1032,7 @@ namespace DragnetControl
             }
             finally
             {
-                SetControlEnabled(regenDatabasesButton, true);
+                SetControlEnabled(regenButton, true);
             }
         }
         private void LoadTableNamesIntoGrid()
@@ -1888,7 +1888,7 @@ namespace DragnetControl
                 dt.Columns[5].ColumnName = "Heartbeat";
                 newsScraperDataGridView.ScrollBars = ScrollBars.None;
                 newsScraperDataGridView.DataSource = dt;
-                ColorRowsByStatus(orderBookDataGridView);
+                ColorRowsByStatus(orderbookDataGridView);
                 newsScraperDataGridView.RowHeadersVisible = false;
                 newsScraperDataGridView.Columns["ID"].Width = 140;
                 newsScraperDataGridView.Columns["Node"].Width = 103;
@@ -1927,7 +1927,7 @@ namespace DragnetControl
                 dt.Columns[5].ColumnName = "Heartbeat";
                 telegramScannerDataGridView.ScrollBars = ScrollBars.None;
                 telegramScannerDataGridView.DataSource = dt;
-                ColorRowsByStatus(orderBookDataGridView);
+                ColorRowsByStatus(orderbookDataGridView);
                 telegramScannerDataGridView.RowHeadersVisible = false;
                 telegramScannerDataGridView.Columns["ID"].Width = 140;
                 telegramScannerDataGridView.Columns["Node"].Width = 103;
