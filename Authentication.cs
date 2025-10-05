@@ -1,29 +1,30 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
-using YourNamespace;
+using DragnetControl.Configuration;
 using MySqlConnector;
 
 namespace DragnetControl
 {
     public partial class Authentication : Form
     {
-        public Authentication()
+        private readonly DragnetConfiguration _configuration;
+        private readonly ConfigurationLoader _configurationLoader;
+
+        public Authentication(DragnetConfiguration configuration)
         {
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _configurationLoader = new ConfigurationLoader(_configuration);
             InitializeComponent();
-            GlobalVariables.UsersDBIP = "localhost";
-            GlobalVariables.UsersDBUsername = "dragnet";
-            GlobalVariables.usersdbPW = "dragnet5";
-            GlobalVariables.UsersDBConnect =
-                $"server={GlobalVariables.UsersDBIP};uid={GlobalVariables.UsersDBUsername};password={GlobalVariables.usersdbPW};database=userdata";
         }
 
         private string passwordAttempt;
 
-        private bool CheckCredentials(string username, string passwordAttempt, out bool dbError)
+        private bool CheckCredentials(string username, string passwordAttempt, out bool dbError, out int accountStatus)
         {
             dbError = false;
+            accountStatus = 0;
 
-            using (var conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (var conn = new MySqlConnection(_configuration.UsersDatabase.BuildConnectionString()))
             {
                 try
                 {
@@ -54,7 +55,7 @@ namespace DragnetControl
                                     {
                                         changePasswordForm.ShowDialog();
                                     }
-                                    GlobalVariables.accountstatus = reader.GetInt32("accountstatus");
+                                    accountStatus = reader.GetInt32("accountstatus");
                                     return true;
                                 }
 
@@ -66,7 +67,7 @@ namespace DragnetControl
                                 bool ok = BCrypt.Net.BCrypt.Verify(passwordAttempt, storedPasswordHash);
                                 if (ok)
                                 {
-                                    GlobalVariables.accountstatus = reader.GetInt32("accountstatus");
+                                    accountStatus = reader.GetInt32("accountstatus");
                                     return true;
                                 }
                                 return false;
@@ -112,7 +113,7 @@ namespace DragnetControl
         {
             try
             {
-                using (var conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+                using (var conn = new MySqlConnection(_configuration.UsersDatabase.BuildConnectionString()))
                 {
                     conn.Open();
                     toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;
@@ -128,11 +129,12 @@ namespace DragnetControl
 
         private void LoginButton_Click(object sender, EventArgs e)
         {
-            GlobalVariables.username = UsernameBox.Text;
+            string username = UsernameBox.Text;
             passwordAttempt = PasswordBox.Text;
 
             bool dbError;
-            bool ok = CheckCredentials(GlobalVariables.username, passwordAttempt, out dbError);
+            int accountStatus;
+            bool ok = CheckCredentials(username, passwordAttempt, out dbError, out accountStatus);
 
             if (dbError)
             {
@@ -146,13 +148,13 @@ namespace DragnetControl
 
             if (ok)
             {
-                if (GlobalVariables.accountstatus == 3)
+                if (accountStatus == 3)
                 {
                     InformationLabel.ForeColor = System.Drawing.Color.Red;
                     InformationLabel.Text = "Account Locked/Suspended.";
                     PasswordBox.Text = "";
                 }
-                else if (GlobalVariables.accountstatus == 1 || GlobalVariables.accountstatus == 2)
+                else if (accountStatus == 1 || accountStatus == 2)
                 {
                     InformationLabel.ForeColor = System.Drawing.Color.Black;
                     InformationLabel.Text = "Login Successful. Loading configuration files.";
@@ -160,12 +162,23 @@ namespace DragnetControl
                     AccessRequestLabel.Hide();
                     this.Hide();
 
-                    using (var assetLoad = new AssetLoadingScreen())
+                    using (var assetLoad = new AssetLoadingScreen(_configurationLoader, username))
                     {
                         assetLoad.ShowDialog();
+                        if (assetLoad.DialogResult == DialogResult.OK)
+                        {
+                            var sessionState = assetLoad.SessionState;
+                            GlobalVariables.Initialize(_configuration, sessionState);
+                            FormManager.Configure(() => new MainControl());
+                            var mainControl = FormManager.MainControl;
+                            mainControl.FormClosed += MainControl_FormClosed;
+                            mainControl.Show();
+                        }
+                        else
+                        {
+                            Show();
+                        }
                     }
-
-                    FormManager.MainControl.FormClosed += MainControl_FormClosed;
                 }
             }
             else

@@ -43,23 +43,26 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@TelegramHost", hostTextBox.Text);
-                        GlobalVariables.TelegramHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramUser", usernameTextBox.Text);
-                        GlobalVariables.TelegramUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramPW", passwordBox.Text);
-                        GlobalVariables.TelegramPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramPath", phonenumberbox.Text);
-                        GlobalVariables.TelephoneNumber = phonenumberbox.Text;
                         cmd.Parameters.AddWithValue("@TelegramAPIID", ApiKeyTextBox.Text);
-                        GlobalVariables.TelegramAPIKey = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramAPIHash", ApiHashTextBox.Text);
-                        GlobalVariables.TelegramAPIHash = ApiHashTextBox.Text;
-                        cmd.Parameters.AddWithValue("@TelegramDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.TelegramDelay = delay;
-                        cmd.Parameters.AddWithValue("@TelegramTimespan", timespantextbox.Text);
+                        cmd.Parameters.AddWithValue("@TelegramDelay", delayTextBox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.TelegramTimespan = TimeSpan;
+                        cmd.Parameters.AddWithValue("@TelegramTimespan", timespantextbox.Text);
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.TelegramHost = hostTextBox.Text;
+                            state.TelegramUser = usernameTextBox.Text;
+                            state.TelegramPassword = passwordBox.Text;
+                            state.TelephoneNumber = phonenumberbox.Text;
+                            state.TelegramApiKey = ApiKeyTextBox.Text;
+                            state.TelegramApiHash = ApiHashTextBox.Text;
+                            state.TelegramDelay = delay;
+                            state.TelegramTimespan = TimeSpan;
+                        });
 
 
 
@@ -98,23 +101,26 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@TelegramHost", hostTextBox.Text);
-                        GlobalVariables.TelegramHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramUser", usernameTextBox.Text);
-                        GlobalVariables.TelegramUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramPW", passwordBox.Text);
-                        GlobalVariables.TelegramPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramPath", phonenumberbox.Text);
-                        GlobalVariables.TelephoneNumber = phonenumberbox.Text;
                         cmd.Parameters.AddWithValue("@TelegramAPIID", ApiKeyTextBox.Text);
-                        GlobalVariables.TelegramAPIKey = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@TelegramAPIHash", ApiHashTextBox.Text);
-                        GlobalVariables.TelegramAPIHash = ApiHashTextBox.Text;
-                        cmd.Parameters.AddWithValue("@TelegramDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.TelegramDelay = delay;
-                        cmd.Parameters.AddWithValue("@TelegramTimespan", timespantextbox.Text);
+                        cmd.Parameters.AddWithValue("@TelegramDelay", delayTextBox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.TelegramTimespan = TimeSpan;
+                        cmd.Parameters.AddWithValue("@TelegramTimespan", timespantextbox.Text);
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.TelegramHost = hostTextBox.Text;
+                            state.TelegramUser = usernameTextBox.Text;
+                            state.TelegramPassword = passwordBox.Text;
+                            state.TelephoneNumber = phonenumberbox.Text;
+                            state.TelegramApiKey = ApiKeyTextBox.Text;
+                            state.TelegramApiHash = ApiHashTextBox.Text;
+                            state.TelegramDelay = delay;
+                            state.TelegramTimespan = TimeSpan;
+                        });
 
                         cmd.ExecuteNonQuery();
                         conn.Close();

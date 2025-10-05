@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using System;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
 
 namespace DragnetControl
 {
@@ -17,7 +13,9 @@ namespace DragnetControl
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Authentication());
+
+            var configuration = Configuration.DragnetConfiguration.FromAppConfig();
+            Application.Run(new Authentication(configuration));
         }
     }
 }

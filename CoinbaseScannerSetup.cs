@@ -49,34 +49,37 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@CBScannerHost", hostTextBox.Text);
-                        GlobalVariables.CoinbaseScannerHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@CBScannerUser", usernameTextBox.Text);
-                        GlobalVariables.CoinbaseScannerUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@CBScannerPW", passwordBox.Text);
-                        GlobalVariables.CoinbaseScannerPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@CBScannerPath", pathbox.Text);
-                        GlobalVariables.CoinbaseScannerPath = pathbox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@CBScannerPort1", port1);
-                        GlobalVariables.CoinbaseScannerPort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@CBScannerPort2", port2);
-                        GlobalVariables.CoinbaseScannerPort2 = port2;
                         cmd.Parameters.AddWithValue("@CoinbaseAPIKey", ApiKeyTextBox.Text);
-                        GlobalVariables.coinbaseAPIKey = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@CoinbaseSecret", ApiSecretTextBox.Text);
-                        GlobalVariables.CoinbaseSecret = ApiSecretTextBox.Text;
                         cmd.Parameters.AddWithValue("CoinbasePassphrase", passphrasetextbox.Text);
-                        GlobalVariables.CoinbasePassphrase = passphrasetextbox.Text;
                         cmd.Parameters.AddWithValue("@CryptoDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.CryptoDelay = delay;
                         cmd.Parameters.AddWithValue("@CryptoTimeFrame", timespantextbox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.CryptoTimeSpan = TimeSpan;
                         cmd.Parameters.AddWithValue("@cryptogranularity", granularitytextbox.Text);
                         int.TryParse(granularitytextbox.Text, out granularity);
-                        GlobalVariables.CryptoGranularity = granularity;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.CoinbaseScannerHost = hostTextBox.Text;
+                            state.CoinbaseScannerUser = usernameTextBox.Text;
+                            state.CoinbaseScannerPassword = passwordBox.Text;
+                            state.CoinbaseScannerPath = pathbox.Text;
+                            state.CoinbaseScannerPort1 = port1;
+                            state.CoinbaseScannerPort2 = port2;
+                            state.CoinbaseApiKey = ApiKeyTextBox.Text;
+                            state.CoinbaseSecret = ApiSecretTextBox.Text;
+                            state.CoinbasePassphrase = passphrasetextbox.Text;
+                            state.CryptoDelay = delay;
+                            state.CryptoTimeSpan = TimeSpan;
+                            state.CryptoGranularity = granularity;
+                        });
 
 
 
@@ -116,34 +119,37 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@CBScannerHost", hostTextBox.Text);
-                        GlobalVariables.CoinbaseScannerHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@CBScannerUser", usernameTextBox.Text);
-                        GlobalVariables.CoinbaseScannerUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@CBScannerPW", passwordBox.Text);
-                        GlobalVariables.CoinbaseScannerPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@CBScannerPath", pathbox.Text);
-                        GlobalVariables.CoinbaseScannerPath = pathbox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@CBScannerPort1", port1);
-                        GlobalVariables.CoinbaseScannerPort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@CBScannerPort2", port2);
-                        GlobalVariables.CoinbaseScannerPort2 = port2;
                         cmd.Parameters.AddWithValue("@CoinbaseAPIKey", ApiKeyTextBox.Text);
-                        GlobalVariables.coinbaseAPIKey = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@CoinbaseSecret", ApiSecretTextBox.Text);
-                        GlobalVariables.CoinbaseSecret = ApiSecretTextBox.Text;
                         cmd.Parameters.AddWithValue("CoinbasePassphrase", passphrasetextbox.Text);
-                        GlobalVariables.CoinbasePassphrase = passphrasetextbox.Text;
                         cmd.Parameters.AddWithValue("@CryptoDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.CryptoDelay = delay;
                         cmd.Parameters.AddWithValue("@CryptoTimeFrame", timespantextbox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.CryptoTimeSpan = TimeSpan;
                         cmd.Parameters.AddWithValue("@cryptogranularity", granularitytextbox.Text);
                         int.TryParse(granularitytextbox.Text, out granularity);
-                        GlobalVariables.CryptoGranularity = granularity;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.CoinbaseScannerHost = hostTextBox.Text;
+                            state.CoinbaseScannerUser = usernameTextBox.Text;
+                            state.CoinbaseScannerPassword = passwordBox.Text;
+                            state.CoinbaseScannerPath = pathbox.Text;
+                            state.CoinbaseScannerPort1 = port1;
+                            state.CoinbaseScannerPort2 = port2;
+                            state.CoinbaseApiKey = ApiKeyTextBox.Text;
+                            state.CoinbaseSecret = ApiSecretTextBox.Text;
+                            state.CoinbasePassphrase = passphrasetextbox.Text;
+                            state.CryptoDelay = delay;
+                            state.CryptoTimeSpan = TimeSpan;
+                            state.CryptoGranularity = granularity;
+                        });
 
 
                         cmd.ExecuteNonQuery();

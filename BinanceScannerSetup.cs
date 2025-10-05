@@ -42,32 +42,35 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@BinanceHost", hostTextBox.Text);
-                        GlobalVariables.BinanceHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@BinanceUser", usernameTextBox.Text);
-                        GlobalVariables.BinanceUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@BinancePW", passwordBox.Text);
-                        GlobalVariables.BinancePW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@BinancePath", pathbox.Text);
-                        GlobalVariables.BinancePath = pathbox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@BinancePort1", port1);
-                        GlobalVariables.BinancePort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@BinancePort2", port2);
-                        GlobalVariables.BinancePort2 = port2;
                         cmd.Parameters.AddWithValue("@BinanceAPI", ApiKeyTextBox.Text);
-                        GlobalVariables.BinanceAPI = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@BinanceSecret", ApiSecretTextBox.Text);
-                        GlobalVariables.BinanceSecret = ApiSecretTextBox.Text;
                         cmd.Parameters.AddWithValue("@CryptoDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.CryptoDelay = delay;
                         cmd.Parameters.AddWithValue("@CryptoTimeFrame", timespantextbox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.CryptoTimeSpan = TimeSpan;
                         cmd.Parameters.AddWithValue("@cryptogranularity", granularitytextbox.Text);
                         int.TryParse(granularitytextbox.Text, out granularity);
-                        GlobalVariables.CryptoGranularity = granularity;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.BinanceHost = hostTextBox.Text;
+                            state.BinanceUser = usernameTextBox.Text;
+                            state.BinancePassword = passwordBox.Text;
+                            state.BinancePath = pathbox.Text;
+                            state.BinancePort1 = port1;
+                            state.BinancePort2 = port2;
+                            state.BinanceApi = ApiKeyTextBox.Text;
+                            state.BinanceSecret = ApiSecretTextBox.Text;
+                            state.CryptoDelay = delay;
+                            state.CryptoTimeSpan = TimeSpan;
+                            state.CryptoGranularity = granularity;
+                        });
 
 
 
@@ -107,32 +110,35 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@BinanceHost", hostTextBox.Text);
-                        GlobalVariables.BinanceHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@BinanceUser", usernameTextBox.Text);
-                        GlobalVariables.BinanceUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@BinancePW", passwordBox.Text);
-                        GlobalVariables.BinancePW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@BinancePath", pathbox.Text);
-                        GlobalVariables.BinancePath = pathbox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@BinancePort1", port1);
-                        GlobalVariables.BinancePort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@BinancePort2", port2);
-                        GlobalVariables.BinancePort2 = port2;
                         cmd.Parameters.AddWithValue("@BinanceAPI", ApiKeyTextBox.Text);
-                        GlobalVariables.BinanceAPI = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@BinanceSecret", ApiSecretTextBox.Text);
-                        GlobalVariables.BinanceSecret = ApiSecretTextBox.Text;
                         cmd.Parameters.AddWithValue("@CryptoDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.CryptoDelay = delay;
                         cmd.Parameters.AddWithValue("@CryptoTimeFrame", timespantextbox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.CryptoTimeSpan = TimeSpan;
                         cmd.Parameters.AddWithValue("@cryptogranularity", granularitytextbox.Text);
                         int.TryParse(granularitytextbox.Text, out granularity);
-                        GlobalVariables.CryptoGranularity = granularity;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.BinanceHost = hostTextBox.Text;
+                            state.BinanceUser = usernameTextBox.Text;
+                            state.BinancePassword = passwordBox.Text;
+                            state.BinancePath = pathbox.Text;
+                            state.BinancePort1 = port1;
+                            state.BinancePort2 = port2;
+                            state.BinanceApi = ApiKeyTextBox.Text;
+                            state.BinanceSecret = ApiSecretTextBox.Text;
+                            state.CryptoDelay = delay;
+                            state.CryptoTimeSpan = TimeSpan;
+                            state.CryptoGranularity = granularity;
+                        });
 
 
                         cmd.ExecuteNonQuery();

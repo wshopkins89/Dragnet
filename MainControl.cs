@@ -5,6 +5,7 @@ using Microsoft.VisualBasic.Devices;
 using MySqlConnector;
 using Newtonsoft.Json;
 using PinEntryControl;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics;
@@ -18,6 +19,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Drawing;
+using System.Threading;
+using System.Threading.Tasks;
 
 
 namespace DragnetControl
@@ -69,6 +72,60 @@ namespace DragnetControl
         private bool _checkInProgress = false;
         private readonly object _scheduleCheckSync = new();
         private readonly object _firedLock = new();
+        private static readonly HttpClient NodeHttpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
+        private static async Task PostJsonAsync(string url, string jsonPayload, CancellationToken cancellationToken)
+        {
+            using var content = new StringContent(jsonPayload ?? "{}", Encoding.UTF8, "application/json");
+            using var response = await NodeHttpClient.PostAsync(url, content, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+        }
+
+        private void SetControlEnabled(Control control, bool enabled)
+        {
+            if (control == null) return;
+
+            if (control.InvokeRequired)
+            {
+                control.BeginInvoke(new Action(() => control.Enabled = enabled));
+            }
+            else
+            {
+                control.Enabled = enabled;
+            }
+        }
+
+        private Task RunOnUiThreadAsync(Func<Task> action)
+        {
+            if (action == null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
+
+            if (!InvokeRequired)
+            {
+                return action();
+            }
+
+            var tcs = new TaskCompletionSource<object?>();
+            BeginInvoke(new Action(async () =>
+            {
+                try
+                {
+                    await action().ConfigureAwait(true);
+                    tcs.SetResult(null);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            }));
+
+            return tcs.Task;
+        }
 
         public MainControl()
         {
@@ -94,8 +151,8 @@ namespace DragnetControl
             cpuCounters = Enumerable.Range(0, Environment.ProcessorCount)
                 .Select(i => new PerformanceCounter("Processor", "% Processor Time", i.ToString()))
                 .ToArray();
-            foreach (var c in cpuCounters) c.NextValue();
-            System.Threading.Thread.Sleep(100);
+
+            Shown += async (_, _) => await WarmUpCpuCountersAsync();
 
             cpuUsage = new ObservableCollection<double>(Enumerable.Repeat(0.0, cpuCounters.Length));
             cpuSeries = ChartConstructor.BuildCpuSeries(cpuUsage);
@@ -174,6 +231,28 @@ namespace DragnetControl
             ResumeLayout(true);
 
             _currentDpi = targetDpi;
+        }
+
+        private async Task WarmUpCpuCountersAsync()
+        {
+            if (cpuCounters == null || cpuCounters.Length == 0)
+            {
+                return;
+            }
+
+            foreach (var counter in cpuCounters)
+            {
+                try
+                {
+                    counter.NextValue();
+                }
+                catch
+                {
+                    // Ignore counters that cannot be read during warm-up.
+                }
+            }
+
+            await Task.Delay(100).ConfigureAwait(true);
         }
         private sealed class PromptRow
         {
@@ -921,24 +1000,39 @@ namespace DragnetControl
                 (assetsDataGridView.DataSource as DataTable).DefaultView.RowFilter = filter;
             }
         }
-        private void regenDatabasesButton_Click(object sender, EventArgs e)
+        private async void regenDatabasesButton_Click(object sender, EventArgs e)
         {
-            if (coinbaseRegenCheckBox.Checked)
+            SetControlEnabled(regenDatabasesButton, false);
+
+            try
             {
-                string payload = $"{{\\\"script\\\":\\\"CoinbaseBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
-                FireOffCommand("localhost", payload);
+                if (coinbaseRegenCheckBox.Checked)
+                {
+                    string payload = $"{{\\\"script\\\":\\\"CoinbaseBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
+                    await FireOffCommand("localhost", payload, CancellationToken.None);
+                }
+
+                await Task.Delay(2000).ConfigureAwait(true);
+                if (krakenRegenCheckBox.Checked)
+                {
+                    string payload = $"{{\\\"script\\\":\\\"KrakenBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
+                    await FireOffCommand("localhost", payload, CancellationToken.None);
+                }
+
+                await Task.Delay(2000).ConfigureAwait(true);
+                if (binanceRegenCheckBox.Checked)
+                {
+                    string payload = $"{{\\\"script\\\":\\\"BinanceBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
+                    await FireOffCommand("localhost", payload, CancellationToken.None);
+                }
             }
-            Thread.Sleep(2000);
-            if (krakenRegenCheckBox.Checked)
+            catch (Exception ex)
             {
-                string payload = $"{{\\\"script\\\":\\\"KrakenBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
-                FireOffCommand("localhost", payload);
+                BeginInvoke(new Action(() => MessageBox.Show($"Error regenerating asset databases: {ex.Message}", "Asset Database", MessageBoxButtons.OK, MessageBoxIcon.Error)));
             }
-            Thread.Sleep(2000);
-            if (binanceRegenCheckBox.Checked)
+            finally
             {
-                string payload = $"{{\\\"script\\\":\\\"BinanceBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
-                FireOffCommand("localhost", payload);
+                SetControlEnabled(regenDatabasesButton, true);
             }
         }
         private void LoadTableNamesIntoGrid()
@@ -1013,352 +1107,162 @@ namespace DragnetControl
                 addNodeForm.ShowDialog();
             }
         }
-        private void autoDelegateButton_Click(object sender, EventArgs e)
+
+        private async void autoDelegateButton_Click(object sender, EventArgs e)
         {
-            WipeDragnetControlTables();
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            SetControlEnabled(autoDelegateButton, false);
+
+            try
             {
-                conn.Open();
-                var cmd = new MySqlCommand("SELECT ip_address, username, password, port, enabled FROM dragnet_nodes", conn);
-                using (var reader = cmd.ExecuteReader())
+                WipeDragnetControlTables();
+
+                using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
                 {
-                    while (reader.Read())
+                    conn.Open();
+                    var cmd = new MySqlCommand("SELECT ip_address FROM dragnet_nodes", conn);
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        string ip = reader.GetString("ip_address");
-                        string username = reader.GetString("username");
-                        string password = reader.GetString("password");
-
-                        // FIXED KILL PAYLOAD
-                        string killPayload = $"{{\\\"process\\\":\\\"sysmon.exe\\\"}}";
-                        string jsonPayload = $"{{\\\"script\\\":\\\"sysmon.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\".5\\\"]}}";
-                        string killArgs = $"-X POST -H \"Content-Type: application/json\" -d \"{killPayload}\" http://{ip}:5005/kill";
-                        string curlArgs = $"-X POST -H \"Content-Type: application/json\" -d \"{jsonPayload}\" http://{ip}:5005/run";
-                        try
+                        while (reader.Read())
                         {
-                            ProcessStartInfo psi = new ProcessStartInfo("curl", killArgs)
+                            string ip = reader.GetString("ip_address");
+
+                            string jsonPayload = $"{{\"script\":\"sysmon.exe\",\"args\":[\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\".5\"]}}";
+
+                            try
                             {
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true,
-                                UseShellExecute = false,
-                                CreateNoWindow = true
-                            };
-                            using (var proc = Process.Start(psi))
-                            {
-                                proc.StandardOutput.ReadToEnd();
-                                proc.StandardError.ReadToEnd();
-                                proc.WaitForExit();
+                                await KillOffCommand(ip, "sysmon.exe", CancellationToken.None).ConfigureAwait(true);
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[EXCEPTION]: {ex.Message}");
-                        }
-
-                        // Optional: Give node a brief moment to kill before launching new process
-                        System.Threading.Thread.Sleep(3000);
-
-                        try
-                        {
-                            ProcessStartInfo psi = new ProcessStartInfo("curl", curlArgs)
+                            catch (Exception ex)
                             {
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true,
-                                UseShellExecute = false,
-                                CreateNoWindow = true
-                            };
-                            using (var proc = Process.Start(psi))
-                            {
-                                proc.StandardOutput.ReadToEnd();
-                                proc.StandardError.ReadToEnd();
-                                proc.WaitForExit();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[EXCEPTION]: {ex.Message}");
-                        }
-                    }
-                }
-            }
-            System.Threading.Thread.Sleep(3000);
-            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
-            {
-                conn.Open();
-                var cmd = new MySqlCommand("SELECT ip_address, hostname, cpu_score, ram_score FROM dragnet_nodes", conn);
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        string ip = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                        string hostname = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                        int cpuScore = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
-                        int ramScore = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
-
-                        // Find the TabPage by IP address in the label
-                        TabPage tab = tabControl1.TabPages
-                            .Cast<TabPage>()
-                            .FirstOrDefault(t => t.Text.EndsWith($"({ip})"));
-
-                        if (tab != null)
-                        {
-                            // Compute the new tab text (just like AddNodeTab does)
-                            string newTabLabel = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown"
-                                ? $"Node ({ip})"
-                                : $"{hostname} ({ip})";
-                            tab.Text = newTabLabel;
-
-                            // Update hostname label (always at (0,0))
-                            var hostnameLabel = tab.Controls.OfType<Label>().FirstOrDefault(l => l.Location == new Point(0, 0));
-                            if (hostnameLabel != null)
-                                hostnameLabel.Text = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown" ? ip : hostname;
-
-                            // Update CPU score ComboBox
-                            var cpuLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "CPU Score:");
-                            if (cpuLabel != null)
-                            {
-                                var cpuBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - cpuLabel.Location.Y) < 10);
-                                if (cpuBox != null && cpuScore > 0)
-                                    cpuBox.SelectedItem = cpuScore.ToString();
+                                Console.WriteLine($"[EXCEPTION]: {ex.Message}");
                             }
 
-                            // Update RAM score ComboBox
-                            var ramLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "RAM Score:");
-                            if (ramLabel != null)
+                            await Task.Delay(3000).ConfigureAwait(true);
+
+                            try
                             {
-                                var ramBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - ramLabel.Location.Y) < 10);
-                                if (ramBox != null && ramScore > 0)
-                                    ramBox.SelectedItem = ramScore.ToString();
+                                await FireOffCommand(ip, jsonPayload, CancellationToken.None).ConfigureAwait(true);
                             }
-                            var curatorEnabled = tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Curator Enabled" && cb.Checked);
-                            if (curatorEnabled)
+                            catch (Exception ex)
                             {
-                                // Calculate params
-                                var (concurrentWorkers, batchSize) = CalculateCuratorParams(cpuScore, ramScore);
-
-                                // Set to appropriate TextBoxes
-                                var workersBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorWorkersTextBox");
-                                if (workersBox != null)
-                                    workersBox.Text = concurrentWorkers.ToString();
-
-                                var batchBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBatchSizeTextBox");
-                                if (batchBox != null)
-                                    batchBox.Text = batchSize.ToString();
+                                Console.WriteLine($"[EXCEPTION]: {ex.Message}");
                             }
                         }
                     }
                 }
-            }
-            // Step 2: Retrieve all assets
-            List<string> assetNames = new List<string>();
-            using (var assetConn = new MySqlConnection(GlobalVariables.AssetDBConnect))
-            {
-                assetConn.Open();
-                using var assetCmd = new MySqlCommand("SELECT name FROM crypto ORDER BY name ASC;", assetConn);
-                using var assetReader = assetCmd.ExecuteReader();
-                while (assetReader.Read())
-                    assetNames.Add(assetReader.GetString("name").ToUpper());
-            }
 
-            // Step 3: Identify active nodes per module
-            var activeNodes = new List<TabPage>();
-            foreach (TabPage tab in tabControl1.TabPages)
-                activeNodes.Add(tab);
+                await Task.Delay(3000).ConfigureAwait(true);
 
-            // Step 3: Identify active tabs for each module based on current UI checkbox state
-            var scannerTabs = tabControl1.TabPages.Cast<TabPage>()
-                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Crypto Scanner" && cb.Checked)).ToList();
-
-            var obScannerTabs = tabControl1.TabPages.Cast<TabPage>()
-                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Orderbook Scanner" && cb.Checked)).ToList();
-
-            var curatorTabs = tabControl1.TabPages.Cast<TabPage>()
-                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Curator Enabled" && cb.Checked)).ToList();
-
-            var TelegramScannerTabs = tabControl1.TabPages.Cast<TabPage>()
-               .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Telegram Scanner" && cb.Checked)).ToList();
-
-            var NewsScraperTabs = tabControl1.TabPages.Cast<TabPage>()
-                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "News Scraper" && cb.Checked)).ToList();
-
-            var TrendsScraperTabs = tabControl1.TabPages.Cast<TabPage>()
-                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Trends Scraper" && cb.Checked)).ToList();
-
-            var HistoricalScannerTabs = tabControl1.TabPages.Cast<TabPage>()
-                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Historical Scanner" && cb.Checked)).ToList();
-
-            int activeCryptoScanners = scannerTabs.Count; // Crypto Scanner tabs
-            int activeOBScanners = obScannerTabs.Count;   // Orderbook Scanner tabs
-            int activeTelegramTabs = TelegramScannerTabs.Count; // Telegram Scraper tabs
-            int activeNewsScrapers = NewsScraperTabs.Count; // News Scraper tabs
-            int activeTrendsScrapers = TrendsScraperTabs.Count; // Trends Scraper tabs
-            int capitoltradescount = HistoricalScannerTabs.Count; // historical scanner tabs
-
-            // --- Calculate delays (QPS = queries per second; Coinbase = 10 QPS hard limit) ---
-            double coinbaseQps = 10.0;
-            double safety = 0.9;
-
-            // For Crypto Scanner
-            double cryptoDelay = 1.0 / ((coinbaseQps * safety) / Math.Max(1, activeCryptoScanners));
-
-            // --- Update users table (example: set for current/active user, or for all) ---
-            using (var userConn = new MySqlConnection(GlobalVariables.UsersDBConnect))
-            {
-                userConn.Open();
-                // Update CryptoDelay
-                var updateCrypto = new MySqlCommand("UPDATE users SET CryptoDelay=@delay WHERE username=@username", userConn);
-                updateCrypto.Parameters.AddWithValue("@delay", cryptoDelay);
-                updateCrypto.Parameters.AddWithValue("@username", GlobalVariables.username);
-                updateCrypto.ExecuteNonQuery();
-                GlobalVariables.CryptoDelay = (float)cryptoDelay;
-            }
-
-            // Helper function to split asset list
-            List<(string start, string end)> ComputeAssetBlocks(List<string> assets, int partitions)
-            {
-                var blocks = new List<(string, string)>();
-                if (partitions <= 0) return blocks;
-
-                int blockSize = assets.Count / partitions;
-                int remainder = assets.Count % partitions;
-                int currentIndex = 0;
-
-                for (int i = 0; i < partitions; i++)
+                using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
                 {
-                    int currentBlockSize = blockSize + (i < remainder ? 1 : 0);
-                    string start = assets[currentIndex];
-                    string end = assets[Math.Min(currentIndex + currentBlockSize - 1, assets.Count - 1)];
-                    blocks.Add((start, end));
-                    currentIndex += currentBlockSize;
+                    conn.Open();
+                    var cmd = new MySqlCommand("SELECT ip_address, hostname, cpu_score, ram_score FROM dragnet_nodes", conn);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            string ip = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                            string hostname = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            int cpuScore = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                            int ramScore = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+
+                            TabPage tab = tabControl1.TabPages
+                                .Cast<TabPage>()
+                                .FirstOrDefault(t => t.Text.EndsWith($"({ip})"));
+
+                            if (tab != null)
+                            {
+                                string newTabLabel = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown"
+                                    ? $"Node ({ip})"
+                                    : $"{hostname} ({ip})";
+
+                                if (tab.InvokeRequired)
+                                {
+                                    tab.BeginInvoke(new Action(() => tab.Text = newTabLabel));
+                                }
+                                else
+                                {
+                                    tab.Text = newTabLabel;
+                                }
+
+                                var hostnameLabel = tab.Controls.OfType<Label>().FirstOrDefault(l => l.Location == new Point(0, 0));
+                                if (hostnameLabel != null)
+                                {
+                                    void UpdateHostname() => hostnameLabel.Text = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown" ? ip : hostname;
+                                    if (hostnameLabel.InvokeRequired)
+                                        hostnameLabel.BeginInvoke(new Action(UpdateHostname));
+                                    else
+                                        UpdateHostname();
+                                }
+
+                                var cpuLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "CPU Score:");
+                                if (cpuLabel != null)
+                                {
+                                    var cpuBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - cpuLabel.Location.Y) < 10);
+                                    if (cpuBox != null && cpuScore > 0)
+                                    {
+                                        void UpdateCpu() => cpuBox.SelectedItem = cpuScore.ToString();
+                                        if (cpuBox.InvokeRequired)
+                                            cpuBox.BeginInvoke(new Action(UpdateCpu));
+                                        else
+                                            UpdateCpu();
+                                    }
+                                }
+
+                                var ramLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "RAM Score:");
+                                if (ramLabel != null)
+                                {
+                                    var ramBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - ramLabel.Location.Y) < 10);
+                                    if (ramBox != null && ramScore > 0)
+                                    {
+                                        void UpdateRam() => ramBox.SelectedItem = ramScore.ToString();
+                                        if (ramBox.InvokeRequired)
+                                            ramBox.BeginInvoke(new Action(UpdateRam));
+                                        else
+                                            UpdateRam();
+                                    }
+                                }
+
+                                var curatorEnabled = tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Curator Enabled" && cb.Checked);
+                                if (curatorEnabled)
+                                {
+                                    var (concurrentWorkers, batchSize) = CalculateCuratorParams(cpuScore, ramScore);
+
+                                    var workersBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorWorkersTextBox");
+                                    if (workersBox != null)
+                                    {
+                                        void UpdateWorkers() => workersBox.Text = concurrentWorkers.ToString();
+                                        if (workersBox.InvokeRequired)
+                                            workersBox.BeginInvoke(new Action(UpdateWorkers));
+                                        else
+                                            UpdateWorkers();
+                                    }
+
+                                    var batchBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBatchSizeTextBox");
+                                    if (batchBox != null)
+                                    {
+                                        void UpdateBatch() => batchBox.Text = batchSize.ToString();
+                                        if (batchBox.InvokeRequired)
+                                            batchBox.BeginInvoke(new Action(UpdateBatch));
+                                        else
+                                            UpdateBatch();
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                return blocks;
             }
-
-            // Step 4: Compute blocks
-            var scannerBlocks = ComputeAssetBlocks(assetNames, scannerTabs.Count);
-            var obScannerBlocks = ComputeAssetBlocks(assetNames, obScannerTabs.Count);
-            var curatorBlocks = ComputeAssetBlocks(assetNames, curatorTabs.Count);
-            var telegramBlocks = ComputeAssetBlocks(assetNames, TelegramScannerTabs.Count);
-            var newsScraperBlocks = ComputeAssetBlocks(assetNames, NewsScraperTabs.Count);
-            var trendsScraperBlocks = ComputeAssetBlocks(assetNames, TrendsScraperTabs.Count);
-            var HistoricalScannerBlocks = ComputeAssetBlocks(assetNames, HistoricalScannerTabs.Count);
-
-            // Step 5: Populate TextBoxes automatically
-            void SetBlockRange(TabPage tab, string module, (string start, string end) block)
+            catch (Exception ex)
             {
-                var startLabel = tab.Controls.OfType<Label>().First(lbl => lbl.Text == "Start at Block:" && lbl.Location.Y > tab.Controls.OfType<System.Windows.Forms.CheckBox>().First(cb => cb.Text == module).Location.Y);
-                var endLabel = tab.Controls.OfType<Label>().First(lbl => lbl.Text == "End at Block:" && lbl.Location.Y > tab.Controls.OfType<System.Windows.Forms.CheckBox>().First(cb => cb.Text == module).Location.Y);
-
-                var startBox = tab.Controls.OfType<TextBox>().First(tb => tb.Location.X == startLabel.Location.X + 110 && Math.Abs(tb.Location.Y - startLabel.Location.Y) < 10);
-                var endBox = tab.Controls.OfType<TextBox>().First(tb => tb.Location.X == endLabel.Location.X + 100 && Math.Abs(tb.Location.Y - endLabel.Location.Y) < 10);
-
-                startBox.Text = block.start;
-                endBox.Text = block.end;
+                BeginInvoke(new Action(() => MessageBox.Show($"Error delegating nodes: {ex.Message}", "Auto Delegate", MessageBoxButtons.OK, MessageBoxIcon.Error)));
             }
-
-            for (int i = 0; i < scannerTabs.Count; i++)
-                SetBlockRange(scannerTabs[i], "Crypto Scanner", scannerBlocks[i]);
-
-            for (int i = 0; i < obScannerTabs.Count; i++)
-                SetBlockRange(obScannerTabs[i], "Orderbook Scanner", obScannerBlocks[i]);
-
-            for (int i = 0; i < curatorTabs.Count; i++)
-                SetBlockRange(curatorTabs[i], "Curator Enabled", curatorBlocks[i]);
-
-            for (int i = 0; i < TelegramScannerTabs.Count; i++)
-                SetBlockRange(TelegramScannerTabs[i], "Telegram Scanner", telegramBlocks[i]);
-
-            for (int i = 0; i < NewsScraperTabs.Count; i++)
-                SetBlockRange(NewsScraperTabs[i], "News Scraper", newsScraperBlocks[i]);
-
-            for (int i = 0; i < TrendsScraperTabs.Count; i++)
-                SetBlockRange(TrendsScraperTabs[i], "Trends Scraper", trendsScraperBlocks[i]);
-
-            for (int i = 0; i < HistoricalScannerTabs.Count; i++)
-                SetBlockRange(HistoricalScannerTabs[i], "Historical Scanner", HistoricalScannerBlocks[i]);
-
-            // Set Scanner IDs
-            for (int i = 0; i < scannerTabs.Count; i++)
+            finally
             {
-                var tab = scannerTabs[i];
-                // Extract node IP from tab label (e.g. "Node (10.0.0.44)" or "MyHost (10.0.0.44)")
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string scannerID = GenerateModuleID("Scanner", ip);
-
-                var scannerIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerIDTextBox");
-                if (scannerIDBox != null)
-                    scannerIDBox.Text = scannerID;
+                SetControlEnabled(autoDelegateButton, true);
             }
-
-            // Set OBScanner IDs
-            for (int i = 0; i < obScannerTabs.Count; i++)
-            {
-                var tab = obScannerTabs[i];
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string obScannerID = GenerateModuleID("OBScanner", ip);
-
-                var obScannerIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerIDTextBox");
-                if (obScannerIDBox != null)
-                    obScannerIDBox.Text = obScannerID;
-            }
-
-            // Set Curator IDs
-            for (int i = 0; i < curatorTabs.Count; i++)
-            {
-                var tab = curatorTabs[i];
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string curatorID = GenerateModuleID("Curator", ip);
-
-                var curatorIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorIDTextBox");
-                if (curatorIDBox != null)
-                    curatorIDBox.Text = curatorID;
-            }
-
-            // Set Telegram Scraper IDs
-            for (int i = 0; i < TelegramScannerTabs.Count; i++)
-            {
-                var tab = TelegramScannerTabs[i];
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string TelegramScannerID = GenerateModuleID("TelegramScanner", ip);
-
-                var telegramScannerIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerIDTextBox");
-                if (telegramScannerIDBox != null)
-                    telegramScannerIDBox.Text = TelegramScannerID;
-            }
-
-            // Set NewsScraper IDs
-            for (int i = 0; i < NewsScraperTabs.Count; i++)
-            {
-                var tab = NewsScraperTabs[i];
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string newsScraperID = GenerateModuleID("News", ip);
-                var newsScraperIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "NewsScraperIDTextBox");
-                if (newsScraperIDBox != null)
-                    newsScraperIDBox.Text = newsScraperID;
-            }
-            // Set TrendsScraper IDs
-            for (int i = 0; i < TrendsScraperTabs.Count; i++)
-            {
-                var tab = TrendsScraperTabs[i];
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string trendsScraperID = GenerateModuleID("Trends", ip);
-                var trendsScraperIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TrendsScraperIDTextBox");
-                if (trendsScraperIDBox != null)
-                    trendsScraperIDBox.Text = trendsScraperID;
-            }
-
-            // Set CapitolTrades IDs
-            for (int i = 0; i < HistoricalScannerTabs.Count; i++)
-            {
-                var tab = HistoricalScannerTabs[i];
-                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
-                string capitolTradesID = GenerateModuleID("Retroscanner", ip);
-                var capitolTradesIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerIDTextBox");
-                if (capitolTradesIDBox != null)
-                    capitolTradesIDBox.Text = capitolTradesID;
-            }
-
-            MessageBox.Show("Auto-delegate completed and asset ranges set.", "Done");
         }
+
         // Helper for ID generation
         private (int concurrentWorkers, int batchSize) CalculateCuratorParams(int cpuScore, int ramScore, int ramPerWorkerMb = 512, int batchRamCostMb = 128, int minBatch = 10, int maxBatch = 1000)
         {
@@ -1401,7 +1305,8 @@ namespace DragnetControl
             return (concurrentWorkers, batchSize);
         }
 
-        private void DragnetStartButton_Click(object sender, EventArgs e)
+
+        private async void DragnetStartButton_Click(object sender, EventArgs e)
         {
             using (var pinForm = new PinEntry())
             {
@@ -1410,19 +1315,35 @@ namespace DragnetControl
                 {
                     if (DragnetStartButton.Text == "Dragnet Start")
                     {
-                        WipeDragnetControlTables();
-                        FireScripts();
-                        Thread.Sleep(1000); // Give it a moment to start
-                        StartWatchdog();
-                        StartScheduleTimer();
-                        DragnetStartButton.Text = "Dragnet Stop";
+                        SetControlEnabled(DragnetStartButton, false);
+                        try
+                        {
+                            WipeDragnetControlTables();
+                            await FireScriptsAsync(CancellationToken.None).ConfigureAwait(true);
+                            await Task.Delay(1000).ConfigureAwait(true);
+                            StartWatchdog();
+                            StartScheduleTimer();
+                            DragnetStartButton.Text = "Dragnet Stop";
+                        }
+                        finally
+                        {
+                            SetControlEnabled(DragnetStartButton, true);
+                        }
                     }
                     else
                     {
-                        DragnetStartButton.Text = "Dragnet Start";
-                        watchdogTimer.Stop();
-                        scheduleTimer.Stop();
-                        ShutdownAllNodes();
+                        SetControlEnabled(DragnetStartButton, false);
+                        try
+                        {
+                            DragnetStartButton.Text = "Dragnet Start";
+                            watchdogTimer.Stop();
+                            scheduleTimer.Stop();
+                            await ShutdownAllNodesAsync(CancellationToken.None).ConfigureAwait(true);
+                        }
+                        finally
+                        {
+                            SetControlEnabled(DragnetStartButton, true);
+                        }
                     }
                 }
                 else
@@ -1431,10 +1352,11 @@ namespace DragnetControl
                 }
             }
         }
-        private void FireScripts()
+
+
+        private async Task FireScriptsAsync(CancellationToken cancellationToken)
         {
             float cryptoDelay = GlobalVariables.CryptoDelay;
-
 
             using (var userConn = new MySqlConnection(GlobalVariables.UsersDBConnect))
             {
@@ -1446,93 +1368,90 @@ namespace DragnetControl
                 {
                     if (reader.Read())
                     {
-
                         // else, keeps the default "0.5"
                     }
-                    // else, keeps the default "0.5" if user not found
                 }
             }
 
             foreach (TabPage tab in tabControl1.TabPages)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string ip = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text.Contains("."))?.Text ?? "";
 
-                // --- Crypto Scanner ---
                 var scannerBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Crypto Scanner");
                 if (scannerBox != null && scannerBox.Checked)
                 {
-                    string start = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
-                    string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
+                    string startRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
+                    string endRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
                     string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerIDTextBox")?.Text.ToLower() ?? "";
 
-                    string payload = $"{{\\\"script\\\":\\\"Scanner.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{cryptoDelay}\\\",\\\"{GlobalVariables.coinbaseAPIKey}\\\",\\\"{GlobalVariables.CoinbaseSecret}\\\",\\\"{GlobalVariables.CoinbasePassphrase}\\\",\\\"{GlobalVariables.BinanceAPI}\\\",\\\"{GlobalVariables.CryptoGranularity}\\\",\\\"{GlobalVariables.CryptoTimeSpan}\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"Scanner.exe\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{startRange}\",\"{endRange}\",\"{cryptoDelay}\",\"{GlobalVariables.coinbaseAPIKey}\",\"{GlobalVariables.CoinbaseSecret}\",\"{GlobalVariables.CoinbasePassphrase}\",\"{GlobalVariables.BinanceAPI}\",\"{GlobalVariables.CryptoGranularity}\",\"{GlobalVariables.CryptoTimeSpan}\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
 
-                // --- Orderbook Scanner ---
                 var obBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Orderbook Scanner");
                 if (obBox != null && obBox.Checked)
                 {
-                    string start = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
-                    string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
+                    string startRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
+                    string endRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
                     string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerIDTextBox")?.Text.ToLower() ?? "";
 
-                    string payload = $"{{\\\"script\\\":\\\"Obscanner.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{cryptoDelay}\\\",\\\"{GlobalVariables.coinbaseAPIKey}\\\",\\\"{GlobalVariables.CoinbaseSecret}\\\",\\\"{GlobalVariables.CoinbasePassphrase}\\\",\\\"{GlobalVariables.BinanceAPI}\\\",\\\"{GlobalVariables.CryptoGranularity}\\\",\\\"{GlobalVariables.CryptoTimeSpan}\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"Obscanner.exe\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{startRange}\",\"{endRange}\",\"{cryptoDelay}\",\"{GlobalVariables.coinbaseAPIKey}\",\"{GlobalVariables.CoinbaseSecret}\",\"{GlobalVariables.CoinbasePassphrase}\",\"{GlobalVariables.BinanceAPI}\",\"{GlobalVariables.CryptoGranularity}\",\"{GlobalVariables.CryptoTimeSpan}\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
 
-                // --- Curator ---
                 var curatorBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Curator Enabled");
                 if (curatorBox != null && curatorBox.Checked)
                 {
-                    string start = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBlockStartTextBox")?.Text.ToLower() ?? "A";
-                    string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBlockEndTextBox")?.Text.ToLower() ?? "Z";
+                    string startRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBlockStartTextBox")?.Text.ToLower() ?? "A";
+                    string endRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBlockEndTextBox")?.Text.ToLower() ?? "Z";
                     string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorIDTextBox")?.Text.ToLower() ?? "";
                     string workers = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorWorkersTextBox")?.Text ?? "1";
                     string batchSize = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBatchSizeTextBox")?.Text ?? "100";
 
-                    string payload = $"{{\\\"script\\\":\\\"Curator.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{batchSize}\\\",\\\"{workers}\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"Curator.exe\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{startRange}\",\"{endRange}\",\"{batchSize}\",\"{workers}\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
 
-                var RetroScannerBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Historical Scanner");
-                if (RetroScannerBox != null && RetroScannerBox.Checked)
+                var retroBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Historical Scanner");
+                if (retroBox != null && retroBox.Checked)
                 {
-                    string start = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
-                    string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
+                    string startRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
+                    string endRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
                     string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerIDTextBox")?.Text.ToLower() ?? "";
-                    string startdate = tab.Controls.OfType<MaskedTextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerStartDateTextBox")?.Text.Replace("/", "") ?? "";
-                    string enddate = tab.Controls.OfType<MaskedTextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerEndDateTextBox")?.Text.Replace("/", "") ?? "";
+                    string startDate = tab.Controls.OfType<MaskedTextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerStartDateTextBox")?.Text.Replace("/", "") ?? "";
+                    string endDate = tab.Controls.OfType<MaskedTextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerEndDateTextBox")?.Text.Replace("/", "") ?? "";
 
-                    string payload = $"{{\\\"script\\\":\\\"RetroScannerDragnet5.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{startdate}\\\",\\\"{enddate}\\\",\\\"{cryptoDelay}\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"RetroScannerDragnet5.exe\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{startRange}\",\"{endRange}\",\"{startDate}\",\"{endDate}\",\"{cryptoDelay}\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
 
-                var TelegramScannerBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Telegram Scanner");
-                if (TelegramScannerBox != null && TelegramScannerBox.Checked)
+                var telegramBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Telegram Scanner");
+                if (telegramBox != null && telegramBox.Checked)
                 {
-                    string start = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
-                    string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
+                    string startRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockStartTextBox")?.Text.ToLower() ?? "A";
+                    string endRange = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockEndTextBox")?.Text.ToLower() ?? "Z";
                     string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerIDTextBox")?.Text.ToLower() ?? "";
-                    string startdate = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockStartTextBox")?.Text ?? "";
-                    string enddate = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockEndTextBox")?.Text ?? "";
-                    string session_name = "DragnetSweep";
+                    string startDate = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockStartTextBox")?.Text ?? "";
+                    string endDate = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerBlockEndTextBox")?.Text ?? "";
+                    string sessionName = "DragnetSweep";
 
-                    string payload = $"{{\\\"script\\\":\\\"TelegramScanner.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{session_name}\\\",\\\"{GlobalVariables.TelegramAPIKey}\\\",\\\"{GlobalVariables.TelegramAPIHash}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{GlobalVariables.PhoneNumber}\\\",\\\"{GlobalVariables.TelegramDelay}\\\",\\\"{GlobalVariables.TelegramTimespan}\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"TelegramScanner.exe\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{sessionName}\",\"{GlobalVariables.TelegramAPIKey}\",\"{GlobalVariables.TelegramAPIHash}\",\"{startRange}\",\"{endRange}\",\"{GlobalVariables.PhoneNumber}\",\"{GlobalVariables.TelegramDelay}\",\"{GlobalVariables.TelegramTimespan}\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
-                var NewsDaemonCheckBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "News Daemon");
-                if (NewsDaemonCheckBox != null && NewsDaemonCheckBox.Checked)
+
+                var newsDaemonBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "News Daemon");
+                if (newsDaemonBox != null && newsDaemonBox.Checked)
                 {
                     string id = "PromptDaemon";
-                    string payload = $"{{\\\"script\\\":\\\"PromptDaemon.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.newsIP}\\\",\\\"{GlobalVariables.newsUser}\\\",\\\"{GlobalVariables.newsPW}\\\",\\\"{GlobalVariables.DataDumpIP}\\\",\\\"{GlobalVariables.DataDumpUser}\\\",\\\"{GlobalVariables.DataDumpPW}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.LLMHost}\\\",\\\"{GlobalVariables.LLMPort}\\\",\\\"{GlobalVariables.ActiveLLMPrompt}\\\",\\\"{GlobalVariables.ActiveLLMPromptVersion}\\\",\\\"{newstimeframe}\\\",\\\"{GlobalVariables.LLMModel}\\\",\\\"{GlobalVariables.LLMContextWindow}\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"PromptDaemon.exe\",\"args\":[\"{id}\",\"{GlobalVariables.newsIP}\",\"{GlobalVariables.newsUser}\",\"{GlobalVariables.newsPW}\",\"{GlobalVariables.DataDumpIP}\",\"{GlobalVariables.DataDumpUser}\",\"{GlobalVariables.DataDumpPW}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.LLMHost}\",\"{GlobalVariables.LLMPort}\",\"{GlobalVariables.ActiveLLMPrompt}\",\"{GlobalVariables.ActiveLLMPromptVersion}\",\"{newstimeframe}\",\"{GlobalVariables.LLMModel}\",\"{GlobalVariables.LLMContextWindow}\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
             }
 
             MessageBox.Show("All enabled scripts fired to all nodes.", "Fire Scripts", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
         }
+
         private bool IsLocalIP(string ip)
         {
             if (string.IsNullOrWhiteSpace(ip)) return true; // Treat blank as localhost
@@ -1557,12 +1476,13 @@ namespace DragnetControl
                 return false;
             }
         }
-        public void RestartModuleFromRow(DataRow row, string moduleType)
+
+        public async Task RestartModuleFromRowAsync(DataRow row, string moduleType, CancellationToken cancellationToken = default)
         {
             string ip = row["Node"].ToString();
             string id = row["ID"].ToString();
             string start = row.Table.Columns.Contains("Start") ? row["Start"].ToString() : "A";
-            string end = row.Table.Columns.Contains("End") ? row["End"].ToString() : "Z";
+            string endRange = row.Table.Columns.Contains("End") ? row["End"].ToString() : "Z";
             float cryptoDelay = GlobalVariables.CryptoDelay;
 
             string script;
@@ -1573,17 +1493,16 @@ namespace DragnetControl
                 case "orderbook":
                     script = "Obscanner.exe";
                     payload =
-                        $"{{\\\"script\\\":\\\"{script}\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{cryptoDelay}\\\",\\\"{GlobalVariables.coinbaseAPIKey}\\\",\\\"{GlobalVariables.CoinbaseSecret}\\\",\\\"{GlobalVariables.CoinbasePassphrase}\\\",\\\"{GlobalVariables.BinanceAPI}\\\",\\\"{GlobalVariables.CryptoGranularity}\\\",\\\"{GlobalVariables.CryptoTimeSpan}\\\"]}}";
+                        $"{{\"script\":\"{script}\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{start}\",\"{endRange}\",\"{cryptoDelay}\",\"{GlobalVariables.coinbaseAPIKey}\",\"{GlobalVariables.CoinbaseSecret}\",\"{GlobalVariables.CoinbasePassphrase}\",\"{GlobalVariables.BinanceAPI}\",\"{GlobalVariables.CryptoGranularity}\",\"{GlobalVariables.CryptoTimeSpan}\"]}}";
                     break;
 
                 case "scanner":
                     script = "Scanner.exe";
                     payload =
-                        $"{{\\\"script\\\":\\\"{script}\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{cryptoDelay}\\\",\\\"{GlobalVariables.coinbaseAPIKey}\\\",\\\"{GlobalVariables.CoinbaseSecret}\\\",\\\"{GlobalVariables.CoinbasePassphrase}\\\",\\\"{GlobalVariables.BinanceAPI}\\\",\\\"{GlobalVariables.CryptoGranularity}\\\",\\\"{GlobalVariables.CryptoTimeSpan}\\\"]}}";
+                        $"{{\"script\":\"{script}\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{start}\",\"{endRange}\",\"{cryptoDelay}\",\"{GlobalVariables.coinbaseAPIKey}\",\"{GlobalVariables.CoinbaseSecret}\",\"{GlobalVariables.CoinbasePassphrase}\",\"{GlobalVariables.BinanceAPI}\",\"{GlobalVariables.CryptoGranularity}\",\"{GlobalVariables.CryptoTimeSpan}\"]}}";
                     break;
 
                 case "curator":
-                    // Read UI knobs (workers/batch) from the tab that matches this node and is enabled
                     TabPage curatorTab = tabControl1.TabPages.Cast<TabPage>()
                         .FirstOrDefault(t => t.Text.EndsWith($"({ip})") &&
                                              t.Controls.OfType<System.Windows.Forms.CheckBox>()
@@ -1600,111 +1519,86 @@ namespace DragnetControl
                     }
                     script = "Curator.exe";
                     payload =
-                        $"{{\\\"script\\\":\\\"{script}\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{batchSize}\\\",\\\"{workers}\\\"]}}";
+                        $"{{\"script\":\"{script}\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{start}\",\"{endRange}\",\"{batchSize}\",\"{workers}\"]}}";
                     break;
 
                 default:
-                    // unknown moduleType; nothing to do
                     return;
             }
 
             if (string.IsNullOrWhiteSpace(payload)) return;
 
-            // --- minimal de-dupe / throttle guard (per node+script+id+range) ---
-            string key = $"{ip}|{id}|{moduleType}|{start}-{end}";
+            string key = $"{ip}|{id}|{moduleType}|{start}-{endRange}";
             lock (_restartGuardLock)
             {
-                // Block concurrent re-entries
                 if (_inFlight.Contains(key))
                 {
-                    // already launching this exact thing
                     return;
                 }
 
-                // Throttle rapid repeats
                 if (_lastStart.TryGetValue(key, out var last) &&
                     (DateTime.UtcNow - last).TotalSeconds < RestartThrottleSeconds)
                 {
-                    return; // recent run already happened
+                    return;
                 }
 
                 _inFlight.Add(key);
-                _lastStart[key] = DateTime.UtcNow; // remember last start time
+                _lastStart[key] = DateTime.UtcNow;
             }
 
             try
             {
-                FireOffCommand(ip, payload);
+                await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
             }
             finally
             {
                 lock (_restartGuardLock)
                 {
                     _inFlight.Remove(key);
-                    // keep _lastStart timestamp so the throttle window remains in effect
                 }
             }
         }
-        private void FireOffCommand(string ip, string jsonPayload)
+
+
+        private async Task FireOffCommand(string ip, string jsonPayload, CancellationToken cancellationToken)
         {
             if (IsLocalIP(ip))
             {
-                // Parse script and args from double-escaped JSON string
-                string cleaned = jsonPayload.Replace("\\\"", "\"").Replace(@"\\", @"\");
-                var scriptMatch = System.Text.RegularExpressions.Regex.Match(cleaned, "\"script\"\\s*:\\s*\"([^\"]+)\"");
-                var argsMatch = System.Text.RegularExpressions.Regex.Match(cleaned, "\"args\"\\s*:\\s*\\[(.*?)\\]");
+                string cleaned = jsonPayload.Replace("\"", """).Replace(@"\", @"");
+                var scriptMatch = System.Text.RegularExpressions.Regex.Match(cleaned, ""script"\s*:\s*"([^"]+)"");
+                var argsMatch = System.Text.RegularExpressions.Regex.Match(cleaned, ""args"\s*:\s*\[(.*?)\]");
                 string script = scriptMatch.Success ? scriptMatch.Groups[1].Value : "";
                 var args = argsMatch.Success
-                    ? argsMatch.Groups[1].Value.Split(new[] { "\",\"" }, StringSplitOptions.None).Select(a => a.Trim('"')).ToList()
+                    ? argsMatch.Groups[1].Value.Split(new[] { "","" }, StringSplitOptions.None).Select(a => a.Trim('"')).ToList()
                     : new List<string>();
 
                 string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, script);
-                string argLine = string.Join(" ", args.Select(a => $"\"{a}\""));
+                string argLine = string.Join(" ", args.Select(a => $""{a}""));
 
                 try
                 {
-                    // Start in a new terminal window (cmd.exe)
                     ProcessStartInfo psi = new ProcessStartInfo
                     {
                         FileName = "cmd.exe",
-                        Arguments = $"/k \"{exePath} {argLine}\"", // /k = keep window open, /c = close after finish
+                        Arguments = $"/k "{exePath} {argLine}"",
                         UseShellExecute = true,
                         CreateNoWindow = false,
                         WorkingDirectory = AppDomain.CurrentDomain.BaseDirectory
                     };
-                    Process.Start(psi); // No WaitForExit, just fire and forget!
+                    Process.Start(psi);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"[EXCEPTION - LOCAL]: {ex.Message}", "Script Launch Error");
+                    BeginInvoke(new Action(() => MessageBox.Show($"[EXCEPTION - LOCAL]: {ex.Message}", "Script Launch Error")));
                 }
+
+                return;
             }
-            else
-            {
-                // Remote node logic (unchanged)
-                string curlArgs = $"-X POST -H \"Content-Type: application/json\" -d \"{jsonPayload}\" http://{ip}:5005/run";
-                try
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo("curl", curlArgs)
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    using (var proc = Process.Start(psi))
-                    {
-                        proc.StandardOutput.ReadToEnd();
-                        proc.StandardError.ReadToEnd();
-                        proc.WaitForExit();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"[EXCEPTION]: {ex.Message}", "Remote Script Error");
-                }
-            }
+
+            string url = $"http://{ip}:5005/run";
+            await PostJsonAsync(url, jsonPayload, cancellationToken).ConfigureAwait(false);
         }
+
         // --- Utility: implement this to get the correct delay or other DB values ---
         private string GetUserField(string fieldName)
         {
@@ -1798,7 +1692,8 @@ namespace DragnetControl
                 MessageBox.Show("Error loading table names: " + ex.Message);
             }
         }
-        private void LoadCuratorList()
+
+        private async Task LoadCuratorListAsync(CancellationToken cancellationToken)
         {
             DataTable dt = new DataTable();
             try
@@ -1829,18 +1724,23 @@ namespace DragnetControl
                 curatorScriptsDataGridView.Columns["End"].Width = 40;
                 curatorScriptsDataGridView.Columns["Status"].Width = 60;
                 curatorScriptsDataGridView.Columns["Heartbeat"].Width = 95;
+
+                var restartTasks = new List<Task>();
                 foreach (DataGridViewRow dgRow in curatorScriptsDataGridView.Rows)
                 {
                     if (dgRow.IsNewRow) continue;
                     if (dgRow.DefaultCellStyle.BackColor == Color.Red)
                     {
-                        DataRowView drv = dgRow.DataBoundItem as DataRowView;
-                        if (drv != null)
+                        if (dgRow.DataBoundItem is DataRowView drv)
                         {
-                            RestartModuleFromRow(drv.Row, "curator");
-                            Console.WriteLine($"[RESTART] Auto-restarted orderbook module on {drv.Row["Node"]}");
+                            restartTasks.Add(RestartModuleFromRowAsync(drv.Row, "curator", cancellationToken));
                         }
                     }
+                }
+
+                if (restartTasks.Count > 0)
+                {
+                    await Task.WhenAll(restartTasks).ConfigureAwait(true);
                 }
             }
             catch (Exception ex)
@@ -1848,7 +1748,9 @@ namespace DragnetControl
                 MessageBox.Show("Error loading table names: " + ex.Message);
             }
         }
-        private void LoadScannerList()
+
+
+        private async Task LoadScannerListAsync(CancellationToken cancellationToken)
         {
             DataTable dt = new DataTable();
             try
@@ -1880,27 +1782,33 @@ namespace DragnetControl
                 scannerDataGridView.Columns["End"].Width = 40;
                 scannerDataGridView.Columns["Status"].Width = 60;
                 scannerDataGridView.Columns["Heartbeat"].Width = 95;
+
+                var restartTasks = new List<Task>();
                 foreach (DataGridViewRow dgRow in scannerDataGridView.Rows)
                 {
                     if (dgRow.IsNewRow) continue;
                     if (dgRow.DefaultCellStyle.BackColor == Color.Red)
                     {
-                        DataRowView drv = dgRow.DataBoundItem as DataRowView;
-                        if (drv != null)
+                        if (dgRow.DataBoundItem is DataRowView drv)
                         {
-                            RestartModuleFromRow(drv.Row, "scanner");
-                            Console.WriteLine($"[RESTART] Auto-restarted orderbook module on {drv.Row["Node"]}");
+                            restartTasks.Add(RestartModuleFromRowAsync(drv.Row, "scanner", cancellationToken));
                         }
                     }
                 }
-            }
 
+                if (restartTasks.Count > 0)
+                {
+                    await Task.WhenAll(restartTasks).ConfigureAwait(true);
+                }
+            }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading table names: " + ex.Message);
             }
         }
-        private void LoadObScannerList()
+
+
+        private async Task LoadObScannerListAsync(CancellationToken cancellationToken)
         {
             DataTable dt = new DataTable();
             try
@@ -1908,49 +1816,55 @@ namespace DragnetControl
                 using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
                 {
                     conn.Open();
-                    string query = "SELECT Obscanner_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM orderbook_modules ORDER BY node_ip;";
+                    string query = "SELECT orderbook_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM orderbook_modules ORDER BY node_ip;";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
                     {
                         adapter.Fill(dt);
                     }
                 }
+
                 dt.Columns[0].ColumnName = "ID";
                 dt.Columns[1].ColumnName = "Node";
                 dt.Columns[2].ColumnName = "Start";
                 dt.Columns[3].ColumnName = "End";
                 dt.Columns[4].ColumnName = "Status";
                 dt.Columns[5].ColumnName = "Heartbeat";
-                orderBookDataGridView.ScrollBars = ScrollBars.None;
-                orderBookDataGridView.DataSource = dt;
-                ColorRowsByStatus(orderBookDataGridView);
-                orderBookDataGridView.RowHeadersVisible = false;
-                orderBookDataGridView.Columns["ID"].Width = 140;
-                orderBookDataGridView.Columns["Node"].Width = 103;
-                orderBookDataGridView.Columns["Start"].Width = 45;
-                orderBookDataGridView.Columns["End"].Width = 40;
-                orderBookDataGridView.Columns["Status"].Width = 60;
-                orderBookDataGridView.Columns["Heartbeat"].Width = 95;
+                orderbookDataGridView.ScrollBars = ScrollBars.None;
+                orderbookDataGridView.DataSource = dt;
+                ColorRowsByStatus(orderbookDataGridView);
+                orderbookDataGridView.RowHeadersVisible = false;
+                orderbookDataGridView.Columns["ID"].Width = 140;
+                orderbookDataGridView.Columns["Node"].Width = 103;
+                orderbookDataGridView.Columns["Start"].Width = 45;
+                orderbookDataGridView.Columns["End"].Width = 40;
+                orderbookDataGridView.Columns["Status"].Width = 60;
+                orderbookDataGridView.Columns["Heartbeat"].Width = 95;
 
-                foreach (DataGridViewRow dgRow in orderBookDataGridView.Rows)
+                var restartTasks = new List<Task>();
+                foreach (DataGridViewRow dgRow in orderbookDataGridView.Rows)
                 {
                     if (dgRow.IsNewRow) continue;
                     if (dgRow.DefaultCellStyle.BackColor == Color.Red)
                     {
-                        DataRowView drv = dgRow.DataBoundItem as DataRowView;
-                        if (drv != null)
+                        if (dgRow.DataBoundItem is DataRowView drv)
                         {
-                            RestartModuleFromRow(drv.Row, "orderbook");
+                            restartTasks.Add(RestartModuleFromRowAsync(drv.Row, "orderbook", cancellationToken));
                         }
                     }
+                }
+
+                if (restartTasks.Count > 0)
+                {
+                    await Task.WhenAll(restartTasks).ConfigureAwait(true);
                 }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error loading table names: " + ex.Message);
             }
-
         }
+
         private void LoadNewsScraperList()
         {
             DataTable dt = new DataTable();
@@ -2179,24 +2093,22 @@ namespace DragnetControl
             }
         }
 
-        private void UpdateDashboard()
+
+        private Task UpdateDashboardAsync(CancellationToken cancellationToken)
         {
-            // Check one main UI control to see if you're on UI thread
-            if (this.InvokeRequired)
+            return RunOnUiThreadAsync(async () =>
             {
-                this.Invoke(new Action(UpdateDashboard)); // Hop to UI thread, then call again
-                return;
-            }
-            // Now, always on UI thread:
-            LoadDaemonList();
-            LoadDragnetLocks();
-            LoadCuratorList();
-            LoadScannerList();
-            LoadObScannerList();
-            LoadNewsScraperList();
-            LoadTelegramScannerList();
-            LoadErrorLog();
+                LoadDaemonList();
+                LoadDragnetLocks();
+                await LoadCuratorListAsync(cancellationToken).ConfigureAwait(true);
+                await LoadScannerListAsync(cancellationToken).ConfigureAwait(true);
+                await LoadObScannerListAsync(cancellationToken).ConfigureAwait(true);
+                LoadNewsScraperList();
+                LoadTelegramScannerList();
+                LoadErrorLog();
+            });
         }
+
 
         private void dragnetTablesDataGridView_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -2328,12 +2240,20 @@ namespace DragnetControl
             watchdogTimer.Tick += WatchdogTimer_Tick;
             watchdogTimer.Start();
         }
-        private void WatchdogTimer_Tick(object sender, EventArgs e)
+        private async void WatchdogTimer_Tick(object sender, EventArgs e)
         {
-            Task.Run(() => UpdateDashboard());
+            try
+            {
+                await UpdateDashboardAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WATCHDOG ERROR] {ex.Message}");
+            }
         }
 
-        public void ShutdownAllNodes()
+
+        public async Task ShutdownAllNodesAsync(CancellationToken cancellationToken)
         {
             List<string> nodeIPs = new List<string>();
 
@@ -2351,29 +2271,28 @@ namespace DragnetControl
                 }
             }
 
-            // Always include localhost as a failsafe
             if (!nodeIPs.Contains("127.0.0.1"))
                 nodeIPs.Add("127.0.0.1");
 
             foreach (string ip in nodeIPs)
             {
-                KillOffCommand(ip, "all");
+                cancellationToken.ThrowIfCancellationRequested();
+                await KillOffCommand(ip, "all", cancellationToken).ConfigureAwait(true);
             }
         }
 
-        public void KillOffCommand(string ip, string processNameOrAll = "all")
+
+
+        public async Task KillOffCommand(string ip, string processNameOrAll = "all", CancellationToken cancellationToken = default)
         {
             if (IsLocalIP(ip))
             {
-                // Localhost: kill all relevant EXEs directly
-                // If 'all', kill all known script EXEs. Otherwise, kill just the one requested.
                 string[] processNames;
                 if (processNameOrAll == "all")
                 {
                     processNames = new string[] {
                 "Scanner.exe", "Obscanner.exe", "Curator.exe",
                 "GoogleNewsCollector.exe", "TrendsScraper.exe", "CapitolTradesModule.exe", "RetroScannerDragnet5.exe", "PromptDaemon.exe", "TelegramScanner.exe"
-                // Add any others you run here
             };
                 }
                 else
@@ -2383,6 +2302,7 @@ namespace DragnetControl
 
                 foreach (var procName in processNames)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
                         ProcessStartInfo psi = new ProcessStartInfo("taskkill", $"/F /IM {procName}")
@@ -2401,37 +2321,18 @@ namespace DragnetControl
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"[KILL EXCEPTION - LOCAL]: {ex.Message}", "Script Kill Error");
+                        BeginInvoke(new Action(() => MessageBox.Show($"[KILL EXCEPTION - LOCAL]: {ex.Message}", "Script Kill Error")));
                     }
                 }
             }
             else
             {
-                // Remote node: send kill command to /kill endpoint
-                string jsonPayload = $"{{\\\"process\\\":\\\"{processNameOrAll}\\\"}}";
-                string curlArgs = $"-X POST -H \"Content-Type: application/json\" -d \"{jsonPayload}\" http://{ip}:5005/kill";
-                try
-                {
-                    ProcessStartInfo psi = new ProcessStartInfo("curl", curlArgs)
-                    {
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    using (var proc = Process.Start(psi))
-                    {
-                        proc.StandardOutput.ReadToEnd();
-                        proc.StandardError.ReadToEnd();
-                        proc.WaitForExit();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"[KILL EXCEPTION]: {ex.Message}", "Remote Script Kill Error");
-                }
+                string jsonPayload = $"{{\"process\":\"{processNameOrAll}\"}}";
+                string url = $"http://{ip}:5005/kill";
+                await PostJsonAsync(url, jsonPayload, cancellationToken).ConfigureAwait(false);
             }
         }
+
         private void saveTaskButton_Click(object sender, EventArgs e)
         {
             string scriptType = scriptTypeComboBox.SelectedItem?.ToString();
@@ -2673,9 +2574,9 @@ namespace DragnetControl
         }
 
 
-        private void CheckAndFireScheduledScripts()
+
+        private async Task CheckAndFireScheduledScriptsAsync(CancellationToken cancellationToken)
         {
-            // atomically claim; if already running on another thread, bail
             if (!TryBeginScheduleCheck())
                 return;
 
@@ -2684,7 +2585,6 @@ namespace DragnetControl
                 DateTime nowUtc = DateTime.UtcNow;
                 DateTime minuteUtc = TruncateToMinute(nowUtc);
 
-                // Reset once per UTC day (under lock)
                 lock (_firedLock)
                 {
                     if (minuteUtc.Date != lastResetDate)
@@ -2695,20 +2595,19 @@ namespace DragnetControl
                     }
                 }
 
-                // Refresh schedule cache every 60s
                 if (nowUtc >= scheduleCacheExpiry)
                 {
-                    cachedSchedule = LoadScheduleRows();     // pulls from DB
+                    cachedSchedule = LoadScheduleRows();
                     scheduleCacheExpiry = nowUtc.AddSeconds(60);
                 }
 
-                // Evaluate rows for THIS minute
                 foreach (var row in cachedSchedule)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!ShouldRunThisMinute(row, minuteUtc))
                         continue;
 
-                    FireScheduledScripts(row.ScriptType, minuteUtc);
+                    await FireScheduledScriptsAsync(row.ScriptType, minuteUtc, cancellationToken).ConfigureAwait(true);
                 }
             }
             finally
@@ -2716,6 +2615,7 @@ namespace DragnetControl
                 EndScheduleCheck();
             }
         }
+
         private bool ShouldRunThisMinute(ScheduleRow row, DateTime minuteUtc)
         {
             // 1) Time-of-day match
@@ -2744,49 +2644,47 @@ namespace DragnetControl
 
             return true;
         }
-        private void FireScheduledScripts(string label, DateTime minuteUtc)
+
+        private async Task FireScheduledScriptsAsync(string label, DateTime minuteUtc, CancellationToken cancellationToken)
         {
             string minuteKey = MinuteKey(minuteUtc);
 
             foreach (TabPage tab in tabControl1.TabPages)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string ip = tab.Controls.OfType<Label>()
                             .FirstOrDefault(lbl => lbl.Text.Contains("."))?.Text ?? "localhost";
 
                 var key = (label, ip, minuteKey);
 
-                // *** Atomically check and add to the set ***
                 bool alreadyFired;
                 lock (_firedLock)
                 {
                     alreadyFired = firedThisMinute.Contains(key);
                     if (!alreadyFired)
-                        firedThisMinute.Add(key); // mark BEFORE firing
+                        firedThisMinute.Add(key);
                 }
                 if (alreadyFired) continue;
 
-                // --- Direct update scripts ---
                 if (label == "Coinbase Update")
                 {
-                    string payload = $"{{\\\"script\\\":\\\"CoinbaseBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"CoinbaseBuildAssetList.exe\",\"args\":[\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{GlobalVariables.assetDBName}\",\"crypto\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
                 if (label == "Binance Update")
                 {
-                    string payload = $"{{\\\"script\\\":\\\"BinanceBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"BinanceBuildAssetList.exe\",\"args\":[\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{GlobalVariables.assetDBName}\",\"crypto\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
                 if (label == "Kraken Update")
                 {
-                    string payload = $"{{\\\"script\\\":\\\"KrakenBuildAssetList.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{GlobalVariables.assetDBName}\\\",\\\"crypto\\\"]}}";
-                    FireOffCommand(ip, payload);
+                    string payload = $"{{\"script\":\"KrakenBuildAssetList.exe\",\"args\":[\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{GlobalVariables.assetDBName}\",\"crypto\"]}}";
+                    await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                 }
 
-                // --- Checkbox-controlled scripts ---
                 var box = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == label);
                 if (box != null && box.Checked)
                 {
-                    // News Scraper
                     var newsBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "News Scraper");
                     if (newsBox != null && newsBox.Checked)
                     {
@@ -2794,11 +2692,10 @@ namespace DragnetControl
                         string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "NewsScraperBlockEndTextBox")?.Text.ToLower() ?? "Z";
                         string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "NewsScraperIDTextBox")?.Text.ToLower() ?? "";
 
-                        string payload = $"{{\\\"script\\\":\\\"GoogleNewsCollector.exe\\\",\\\"args\\\":[\\\"{id}\\\",\\\"{GlobalVariables.DragnetDBIP}\\\",\\\"{GlobalVariables.DragnetDBUser}\\\",\\\"{GlobalVariables.DragnetDBPassword}\\\",\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\"{GlobalVariables.assetIP}\\\",\\\"{GlobalVariables.assetUser}\\\",\\\"{GlobalVariables.assetPW}\\\",\\\"{start}\\\",\\\"{end}\\\",\\\"{newstimeframe}\\\"]}}";
-                        FireOffCommand(ip, payload);
+                        string payload = $"{{\"script\":\"GoogleNewsCollector.exe\",\"args\":[\"{id}\",\"{GlobalVariables.DragnetDBIP}\",\"{GlobalVariables.DragnetDBUser}\",\"{GlobalVariables.DragnetDBPassword}\",\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\"{GlobalVariables.assetIP}\",\"{GlobalVariables.assetUser}\",\"{GlobalVariables.assetPW}\",\"{start}\",\"{end}\",\"{newstimeframe}\"]}}";
+                        await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                     }
 
-                    // Trends Scraper
                     var trendsBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Trends Scraper");
                     if (trendsBox != null && trendsBox.Checked)
                     {
@@ -2806,11 +2703,10 @@ namespace DragnetControl
                         string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TrendsScraperBlockEndTextBox")?.Text.ToLower() ?? "Z";
                         string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TrendsScraperIDTextBox")?.Text.ToLower() ?? "";
 
-                        string payload = $"{{\"script\":\"TrendsScraper.exe\",\"args\":[\"{start}\",\"{end}\",\"{id}\",\"\"]}}";
-                        FireOffCommand(ip, payload);
+                        string payload = $"{{\\\"script\\\":\\\"TrendsScraper.exe\\\",\\\"args\\\":[\\\"{start}\\\",\\\"{end}\\\",\\\"{id}\\\",\\\"\\\"]}}";
+                        await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                     }
 
-                    // CapitolTrades
                     var capBox = tab.Controls.OfType<CheckBox>().FirstOrDefault(cb => cb.Text == "Capitol Trades");
                     if (capBox != null && capBox.Checked)
                     {
@@ -2818,12 +2714,13 @@ namespace DragnetControl
                         string end = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CapitolTradesBlockEndTextBox")?.Text.ToLower() ?? "Z";
                         string id = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CapitolTradesIDTextBox")?.Text.ToLower() ?? "";
 
-                        string payload = $"{{\"script\":\"CapitolTradesModule.exe\",\"args\":[\"{start}\",\"{end}\",\"{id}\",\"\"]}}";
-                        FireOffCommand(ip, payload);
+                        string payload = $"{{\\\"script\\\":\\\"CapitolTradesModule.exe\\\",\\\"args\\\":[\\\"{start}\\\",\\\"{end}\\\",\\\"{id}\\\",\\\"\\\"]}}";
+                        await FireOffCommand(ip, payload, cancellationToken).ConfigureAwait(true);
                     }
                 }
             }
         }
+
         private List<ScheduleRow> LoadScheduleRows()
         {
             var list = new List<ScheduleRow>();
@@ -2864,9 +2761,20 @@ namespace DragnetControl
             scheduleTimer.Tick += scheduleTimer_Tick;
             scheduleTimer.Start();
         }
-        private void scheduleTimer_Tick(object sender, EventArgs e)
+        private async void scheduleTimer_Tick(object sender, EventArgs e)
         {
-            Task.Run(() => CheckAndFireScheduledScripts());
+            try
+            {
+                await CheckAndFireScheduledScriptsAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore cancellations triggered by shutdown.
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SCHEDULE ERROR] {ex.Message}");
+            }
         }
         private void WireAiConfigUi()
         {
@@ -3174,10 +3082,13 @@ namespace DragnetControl
                     await SaveGlobalsToDbAsync(h, p, m, c);
 
                     // reflect into globals
-                    GlobalVariables.LLMHost = h;
-                    GlobalVariables.LLMPort = p;
-                    GlobalVariables.LLMModel = m;
-                    GlobalVariables.LLMContextWindow = c;
+                    GlobalVariables.UpdateSessionState(state =>
+                    {
+                        state.LlmHost = h;
+                        state.LlmPort = p;
+                        state.LlmModel = m;
+                        state.LlmContextWindow = c;
+                    });
 
                     apiBaseBox.Text = ApiBase();
                     Log(log, $"[SAVE] Settings saved for user '{username}' and applied to GlobalVariables.");
@@ -3510,8 +3421,11 @@ LIMIT 1;";
                         "Update skipped", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return;
                 }
-                GlobalVariables.ActiveLLMPrompt = promptName;
-                GlobalVariables.ActiveLLMPromptVersion = promptVersion;
+                GlobalVariables.UpdateSessionState(state =>
+                {
+                    state.ActiveLlmPrompt = promptName;
+                    state.ActiveLlmPromptVersion = promptVersion;
+                });
                 if (lblStatus != null)
                     lblStatus.Text = $"Updated active prompt '{promptName} ({promptVersion})' for '{username}'.";
             }

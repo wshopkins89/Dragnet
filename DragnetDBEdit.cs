@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Windows.Forms;
+using DragnetControl.Configuration;
 using MySqlConnector;
 
 namespace DragnetControl
@@ -32,19 +33,24 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@dragnetip", hostTextBox.Text);
-                        GlobalVariables.DragnetDBIP = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@dragnetuser", usernameTextBox.Text);
-                        GlobalVariables.DragnetDBUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@dragnetpassword", passwordBox.Text);
-                        GlobalVariables.DragnetDBPassword = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@dragnetdbname", databasebox.Text);
-                        GlobalVariables.DragnetDBName = databasebox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@dragnetport1", port1);
-                        GlobalVariables.DragnetPort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@dragnetport2", port2);
-                        GlobalVariables.DragnetPort2 = port2;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.DragnetDatabase = new Configuration.DatabaseCredentials(
+                                hostTextBox.Text,
+                                usernameTextBox.Text,
+                                passwordBox.Text,
+                                databasebox.Text,
+                                port1,
+                                port2);
+                            state.DragnetDbConnectionString = state.DragnetDatabase.BuildConnectionString();
+                        });
 
 
                         int rowsAffected = cmd.ExecuteNonQuery();
@@ -80,19 +86,24 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@dragnetip", hostTextBox.Text);
-                        GlobalVariables.DragnetDBIP = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@dragnetuser", usernameTextBox.Text);
-                        GlobalVariables.DragnetDBUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@dragnetpassword", passwordBox.Text);
-                        GlobalVariables.DragnetDBPassword = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@dragnetdbname", databasebox.Text);
-                        GlobalVariables.DragnetDBName = databasebox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@dragnetport1", port1);
-                        GlobalVariables.DragnetPort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@dragnetport2", port2);
-                        GlobalVariables.DragnetPort2 = port2;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.DragnetDatabase = new Configuration.DatabaseCredentials(
+                                hostTextBox.Text,
+                                usernameTextBox.Text,
+                                passwordBox.Text,
+                                databasebox.Text,
+                                port1,
+                                port2);
+                            state.DragnetDbConnectionString = state.DragnetDatabase.BuildConnectionString();
+                        });
                         cmd.ExecuteNonQuery();
                         conn.Close();
                         this.Close();

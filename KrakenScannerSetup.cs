@@ -40,32 +40,35 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@KrakenHost", hostTextBox.Text);
-                        GlobalVariables.KrakenScannerHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenScannerUser", usernameTextBox.Text);
-                        GlobalVariables.KrakenScannerUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenScannerPW", passwordBox.Text);
-                        GlobalVariables.KrakenScannerPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenPath", pathbox.Text);
-                        GlobalVariables.KrakenPath = pathbox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@KrakenScannerPort1", port1);
-                        GlobalVariables.KrakenScannerPort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@KrakenScannerPort2", port2);
-                        GlobalVariables.KrakenScannerPort2 = port2;
                         cmd.Parameters.AddWithValue("@KrakenAPI", ApiKeyTextBox.Text);
-                        GlobalVariables.KrakenAPIKey = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenPrivateKey", ApiSecretTextBox.Text);
-                        GlobalVariables.KrakenPrivateKey = ApiSecretTextBox.Text;
                         cmd.Parameters.AddWithValue("@CryptoDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.CryptoDelay = delay;
                         cmd.Parameters.AddWithValue("@CryptoTimeFrame", timespantextbox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.CryptoTimeSpan = TimeSpan;
                         cmd.Parameters.AddWithValue("@cryptogranularity", granularitytextbox.Text);
                         int.TryParse(granularitytextbox.Text, out granularity);
-                        GlobalVariables.CryptoGranularity = granularity;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.KrakenScannerHost = hostTextBox.Text;
+                            state.KrakenScannerUser = usernameTextBox.Text;
+                            state.KrakenScannerPassword = passwordBox.Text;
+                            state.KrakenPath = pathbox.Text;
+                            state.KrakenScannerPort1 = port1;
+                            state.KrakenScannerPort2 = port2;
+                            state.KrakenApiKey = ApiKeyTextBox.Text;
+                            state.KrakenPrivateKey = ApiSecretTextBox.Text;
+                            state.CryptoDelay = delay;
+                            state.CryptoTimeSpan = TimeSpan;
+                            state.CryptoGranularity = granularity;
+                        });
 
 
 
@@ -105,32 +108,35 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@KrakenHost", hostTextBox.Text);
-                        GlobalVariables.KrakenScannerHost = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenScannerUser", usernameTextBox.Text);
-                        GlobalVariables.KrakenScannerUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenScannerPW", passwordBox.Text);
-                        GlobalVariables.KrakenScannerPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenPath", pathbox.Text);
-                        GlobalVariables.KrakenPath = pathbox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@KrakenScannerPort1", port1);
-                        GlobalVariables.KrakenScannerPort1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@KrakenScannerPort2", port2);
-                        GlobalVariables.KrakenScannerPort2 = port2;
                         cmd.Parameters.AddWithValue("@KrakenAPI", ApiKeyTextBox.Text);
-                        GlobalVariables.KrakenAPIKey = ApiKeyTextBox.Text;
                         cmd.Parameters.AddWithValue("@KrakenPrivateKey", ApiSecretTextBox.Text);
-                        GlobalVariables.KrakenPrivateKey = ApiSecretTextBox.Text;
                         cmd.Parameters.AddWithValue("@CryptoDelay", delayTextBox.Text);
                         int.TryParse(delayTextBox.Text, out delay);
-                        GlobalVariables.CryptoDelay = delay;
                         cmd.Parameters.AddWithValue("@CryptoTimeFrame", timespantextbox.Text);
                         int.TryParse(timespantextbox.Text, out TimeSpan);
-                        GlobalVariables.CryptoTimeSpan = TimeSpan;
                         cmd.Parameters.AddWithValue("@cryptogranularity", granularitytextbox.Text);
                         int.TryParse(granularitytextbox.Text, out granularity);
-                        GlobalVariables.CryptoGranularity = granularity;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.KrakenScannerHost = hostTextBox.Text;
+                            state.KrakenScannerUser = usernameTextBox.Text;
+                            state.KrakenScannerPassword = passwordBox.Text;
+                            state.KrakenPath = pathbox.Text;
+                            state.KrakenScannerPort1 = port1;
+                            state.KrakenScannerPort2 = port2;
+                            state.KrakenApiKey = ApiKeyTextBox.Text;
+                            state.KrakenPrivateKey = ApiSecretTextBox.Text;
+                            state.CryptoDelay = delay;
+                            state.CryptoTimeSpan = TimeSpan;
+                            state.CryptoGranularity = granularity;
+                        });
 
 
                         cmd.ExecuteNonQuery();

@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using DragnetControl.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using MySqlConnector;
+using DragnetControl.Infrastructure.Configuration;
 
 namespace DragnetControl
 {
@@ -27,7 +29,7 @@ namespace DragnetControl
 
         private void SaveButton_Click(object sender, EventArgs e)
         {
-            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.UsersConnectionString))
             {
                 try
                 {
@@ -37,21 +39,26 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@assetIP", hostTextBox.Text);
-                        GlobalVariables.assetIP = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@assetuser", usernameTextBox.Text);
-                        GlobalVariables.assetUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@assetpw", passwordBox.Text);
-                        GlobalVariables.assetPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@assetdbname", databasebox.Text);
-                        GlobalVariables.assetDBName = databasebox.Text;
                         int port1;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@AssetPort1", port1);
-                        GlobalVariables.assetport1 = port1;
                         int port2;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@AssetPort2", port2);
-                        GlobalVariables.assetport2 = port2;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.AssetDatabase = new Configuration.DatabaseCredentials(
+                                hostTextBox.Text,
+                                usernameTextBox.Text,
+                                passwordBox.Text,
+                                databasebox.Text,
+                                port1,
+                                port2);
+                            state.AssetDbConnectionString = state.AssetDatabase.BuildConnectionString();
+                        });
 
 
                         int rowsAffected = cmd.ExecuteNonQuery();
@@ -75,7 +82,7 @@ namespace DragnetControl
 
         private void SaveandCloseButton_Click(object sender, EventArgs e)
         {
-            using (MySqlConnection conn = new MySqlConnection(GlobalVariables.UsersDBConnect))
+            using (MySqlConnection conn = new MySqlConnection(DatabaseSettings.Current.UsersConnectionString))
             {
                 int port1;
                 int port2;
@@ -87,19 +94,24 @@ namespace DragnetControl
                     {
                         cmd.Parameters.AddWithValue("@username", username);
                         cmd.Parameters.AddWithValue("@assetIP", hostTextBox.Text);
-                        GlobalVariables.assetIP = hostTextBox.Text;
                         cmd.Parameters.AddWithValue("@assetuser", usernameTextBox.Text);
-                        GlobalVariables.assetUser = usernameTextBox.Text;
                         cmd.Parameters.AddWithValue("@assetpw", passwordBox.Text);
-                        GlobalVariables.assetPW = passwordBox.Text;
                         cmd.Parameters.AddWithValue("@assetdbname", databasebox.Text);
-                        GlobalVariables.assetDBName = databasebox.Text;
                         int.TryParse(portbox1.Text, out port1);
                         cmd.Parameters.AddWithValue("@assetport1", port1);
-                        GlobalVariables.assetport1 = port1;
                         int.TryParse(portbox2.Text, out port2);
                         cmd.Parameters.AddWithValue("@assetport2", port2);
-                        GlobalVariables.assetport2 = port2;
+                        GlobalVariables.UpdateSessionState(state =>
+                        {
+                            state.AssetDatabase = new Configuration.DatabaseCredentials(
+                                hostTextBox.Text,
+                                usernameTextBox.Text,
+                                passwordBox.Text,
+                                databasebox.Text,
+                                port1,
+                                port2);
+                            state.AssetDbConnectionString = state.AssetDatabase.BuildConnectionString();
+                        });
                         cmd.ExecuteNonQuery();
                         conn.Close();
                         this.Close();
