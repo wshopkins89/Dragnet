@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System;
 
 namespace DragnetControl
 {
-    public class FormManager
+    public static class FormManager
     {
-        private static MainControl _mainControl;
+        private static MainControl? _mainControl;
         private static Func<MainControl> _factory = () => new MainControl();
 
         public static MainControl MainControl
@@ -16,7 +12,6 @@ namespace DragnetControl
             get
             {
                 if (_mainControl == null || _mainControl.IsDisposed)
-
                 {
                     _mainControl = _factory();
                 }
@@ -32,11 +27,8 @@ namespace DragnetControl
             {
                 _mainControl.Dispose();
             }
+
             _mainControl = null;
         }
     }
 }
-       
-    
-
-    
