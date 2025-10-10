@@ -140,27 +140,7 @@ namespace DragnetControl
 
                 if (accountStatus == 1 || accountStatus == 2)
                 {
-                    InformationLabel.ForeColor = System.Drawing.Color.Black;
-                    InformationLabel.Text = "Login Successful. Loading configuration files.";
-                    PasswordBox.Text = string.Empty;
-                    AccessRequestLabel.Hide();
-                    Hide();
-
-                    using var assetLoad = new AssetLoadingScreen(_configurationLoader, username);
-                    assetLoad.ShowDialog();
-                    if (assetLoad.DialogResult == DialogResult.OK)
-                    {
-                        var sessionState = assetLoad.SessionState;
-                        GlobalVariables.Initialize(_configuration, sessionState);
-                        FormManager.Configure(() => new MainControl());
-                        var mainControl = FormManager.MainControl;
-                        mainControl.FormClosed += MainControl_FormClosed;
-                        mainControl.Show();
-                    }
-                    else
-                    {
-                        Show();
-                    }
+                    await LoadConfigurationAndLaunchAsync(username);
                 }
 
                 return;

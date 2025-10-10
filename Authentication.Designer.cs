@@ -30,192 +30,192 @@ namespace DragnetControl
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Authentication));
-            this.LoginButton = new System.Windows.Forms.Button();
-            this.UsernameLabel = new System.Windows.Forms.Label();
-            this.PasswordLabel = new System.Windows.Forms.Label();
-            this.ExitButton = new System.Windows.Forms.Button();
-            this.UsernameBox = new System.Windows.Forms.TextBox();
-            this.PasswordBox = new System.Windows.Forms.TextBox();
-            this.ConnectionStatusStrip = new System.Windows.Forms.StatusStrip();
-            this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
-            this.AccessRequestLabel = new System.Windows.Forms.LinkLabel();
-            this.InformationLabel = new System.Windows.Forms.Label();
-            this.RememberUserNameCheckBox = new System.Windows.Forms.CheckBox();
-            this.ConfigurationProgressBar = new System.Windows.Forms.ProgressBar();
-            this.ConfigurationStatusLabel = new System.Windows.Forms.Label();
-            this.ConnectionStatusStrip.SuspendLayout();
-            this.SuspendLayout();
+            LoginButton = new Button();
+            UsernameLabel = new Label();
+            PasswordLabel = new Label();
+            ExitButton = new Button();
+            UsernameBox = new TextBox();
+            PasswordBox = new TextBox();
+            ConnectionStatusStrip = new StatusStrip();
+            toolStripStatusLabel1 = new ToolStripStatusLabel();
+            AccessRequestLabel = new LinkLabel();
+            InformationLabel = new Label();
+            RememberUserNameCheckBox = new CheckBox();
+            ConfigurationProgressBar = new ProgressBar();
+            ConfigurationStatusLabel = new Label();
+            ConnectionStatusStrip.SuspendLayout();
+            SuspendLayout();
             // 
             // LoginButton
             // 
-            this.LoginButton.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.LoginButton.Location = new System.Drawing.Point(185, 269);
-            this.LoginButton.Name = "LoginButton";
-            this.LoginButton.Size = new System.Drawing.Size(75, 23);
-            this.LoginButton.TabIndex = 3;
-            this.LoginButton.Text = "&Login";
-            this.LoginButton.UseVisualStyleBackColor = true;
-            this.LoginButton.Click += new System.EventHandler(this.LoginButton_Click);
+            LoginButton.Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            LoginButton.Location = new Point(185, 269);
+            LoginButton.Name = "LoginButton";
+            LoginButton.Size = new Size(75, 23);
+            LoginButton.TabIndex = 3;
+            LoginButton.Text = "&Login";
+            LoginButton.UseVisualStyleBackColor = true;
+            LoginButton.Click += LoginButton_Click;
             // 
             // UsernameLabel
             // 
-            this.UsernameLabel.AutoSize = true;
-            this.UsernameLabel.BackColor = System.Drawing.Color.Transparent;
-            this.UsernameLabel.Font = new System.Drawing.Font("Audiowide", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.UsernameLabel.ForeColor = System.Drawing.Color.Cyan;
-            this.UsernameLabel.Location = new System.Drawing.Point(12, 159);
-            this.UsernameLabel.Name = "UsernameLabel";
-            this.UsernameLabel.Size = new System.Drawing.Size(156, 27);
-            this.UsernameLabel.TabIndex = 1;
-            this.UsernameLabel.Text = "USERNAME:";
+            UsernameLabel.AutoSize = true;
+            UsernameLabel.BackColor = Color.Transparent;
+            UsernameLabel.Font = new Font("Audiowide", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            UsernameLabel.ForeColor = Color.Cyan;
+            UsernameLabel.Location = new Point(12, 159);
+            UsernameLabel.Name = "UsernameLabel";
+            UsernameLabel.Size = new Size(200, 35);
+            UsernameLabel.TabIndex = 1;
+            UsernameLabel.Text = "USERNAME:";
             // 
             // PasswordLabel
             // 
-            this.PasswordLabel.AutoSize = true;
-            this.PasswordLabel.BackColor = System.Drawing.Color.Transparent;
-            this.PasswordLabel.Font = new System.Drawing.Font("Audiowide", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.PasswordLabel.ForeColor = System.Drawing.Color.Cyan;
-            this.PasswordLabel.Location = new System.Drawing.Point(9, 206);
-            this.PasswordLabel.Name = "PasswordLabel";
-            this.PasswordLabel.Size = new System.Drawing.Size(157, 27);
-            this.PasswordLabel.TabIndex = 2;
-            this.PasswordLabel.Text = "PASSWORD:";
+            PasswordLabel.AutoSize = true;
+            PasswordLabel.BackColor = Color.Transparent;
+            PasswordLabel.Font = new Font("Audiowide", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            PasswordLabel.ForeColor = Color.Cyan;
+            PasswordLabel.Location = new Point(9, 206);
+            PasswordLabel.Name = "PasswordLabel";
+            PasswordLabel.Size = new Size(203, 35);
+            PasswordLabel.TabIndex = 2;
+            PasswordLabel.Text = "PASSWORD:";
             // 
             // ExitButton
             // 
-            this.ExitButton.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.ExitButton.Location = new System.Drawing.Point(266, 269);
-            this.ExitButton.Name = "ExitButton";
-            this.ExitButton.Size = new System.Drawing.Size(75, 23);
-            this.ExitButton.TabIndex = 4;
-            this.ExitButton.Text = "&Exit";
-            this.ExitButton.UseVisualStyleBackColor = true;
-            this.ExitButton.Click += new System.EventHandler(this.ExitButton_Click);
+            ExitButton.Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            ExitButton.Location = new Point(266, 269);
+            ExitButton.Name = "ExitButton";
+            ExitButton.Size = new Size(75, 23);
+            ExitButton.TabIndex = 4;
+            ExitButton.Text = "&Exit";
+            ExitButton.UseVisualStyleBackColor = true;
+            ExitButton.Click += ExitButton_Click;
             // 
             // UsernameBox
             // 
-            this.UsernameBox.Font = new System.Drawing.Font("Audiowide", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.UsernameBox.Location = new System.Drawing.Point(170, 157);
-            this.UsernameBox.Name = "UsernameBox";
-            this.UsernameBox.Size = new System.Drawing.Size(213, 34);
-            this.UsernameBox.TabIndex = 1;
+            UsernameBox.Font = new Font("Audiowide", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            UsernameBox.Location = new Point(170, 157);
+            UsernameBox.Name = "UsernameBox";
+            UsernameBox.Size = new Size(213, 41);
+            UsernameBox.TabIndex = 1;
             // 
             // PasswordBox
             // 
-            this.PasswordBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.PasswordBox.Location = new System.Drawing.Point(170, 204);
-            this.PasswordBox.Name = "PasswordBox";
-            this.PasswordBox.PasswordChar = '•';
-            this.PasswordBox.Size = new System.Drawing.Size(212, 31);
-            this.PasswordBox.TabIndex = 2;
+            PasswordBox.Font = new Font("Microsoft Sans Serif", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            PasswordBox.Location = new Point(170, 204);
+            PasswordBox.Name = "PasswordBox";
+            PasswordBox.PasswordChar = '•';
+            PasswordBox.Size = new Size(212, 37);
+            PasswordBox.TabIndex = 2;
             // 
             // ConnectionStatusStrip
             // 
-            this.ConnectionStatusStrip.BackColor = System.Drawing.SystemColors.ActiveCaptionText;
-            this.ConnectionStatusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripStatusLabel1});
-            this.ConnectionStatusStrip.Location = new System.Drawing.Point(0, 338);
-            this.ConnectionStatusStrip.Name = "ConnectionStatusStrip";
-            this.ConnectionStatusStrip.Size = new System.Drawing.Size(511, 22);
-            this.ConnectionStatusStrip.TabIndex = 6;
-            this.ConnectionStatusStrip.Text = "statusStrip1";
-            this.ConnectionStatusStrip.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.ConnectionStatusStrip_ItemClicked);
+            ConnectionStatusStrip.BackColor = SystemColors.ActiveCaptionText;
+            ConnectionStatusStrip.ImageScalingSize = new Size(20, 20);
+            ConnectionStatusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabel1 });
+            ConnectionStatusStrip.Location = new Point(0, 369);
+            ConnectionStatusStrip.Name = "ConnectionStatusStrip";
+            ConnectionStatusStrip.Size = new Size(511, 22);
+            ConnectionStatusStrip.TabIndex = 6;
+            ConnectionStatusStrip.Text = "statusStrip1";
+            ConnectionStatusStrip.ItemClicked += ConnectionStatusStrip_ItemClicked;
             // 
             // toolStripStatusLabel1
             // 
-            this.toolStripStatusLabel1.Font = new System.Drawing.Font("Audiowide", 6.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.toolStripStatusLabel1.ForeColor = System.Drawing.Color.Cyan;
-            this.toolStripStatusLabel1.Name = "toolStripStatusLabel1";
-            this.toolStripStatusLabel1.Size = new System.Drawing.Size(98, 17);
-            this.toolStripStatusLabel1.Text = "Connection Status";
+            toolStripStatusLabel1.Font = new Font("Audiowide", 6.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            toolStripStatusLabel1.ForeColor = Color.Cyan;
+            toolStripStatusLabel1.Name = "toolStripStatusLabel1";
+            toolStripStatusLabel1.Size = new Size(131, 16);
+            toolStripStatusLabel1.Text = "Connection Status";
             // 
             // AccessRequestLabel
             // 
-            this.AccessRequestLabel.AutoSize = true;
-            this.AccessRequestLabel.BackColor = System.Drawing.Color.Transparent;
-            this.AccessRequestLabel.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.AccessRequestLabel.Location = new System.Drawing.Point(194, 320);
-            this.AccessRequestLabel.Name = "AccessRequestLabel";
-            this.AccessRequestLabel.Size = new System.Drawing.Size(107, 14);
-            this.AccessRequestLabel.TabIndex = 7;
-            this.AccessRequestLabel.TabStop = true;
-            this.AccessRequestLabel.Text = "&Request Access";
+            AccessRequestLabel.AutoSize = true;
+            AccessRequestLabel.BackColor = Color.Transparent;
+            AccessRequestLabel.Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            AccessRequestLabel.Location = new Point(194, 320);
+            AccessRequestLabel.Name = "AccessRequestLabel";
+            AccessRequestLabel.Size = new Size(134, 18);
+            AccessRequestLabel.TabIndex = 7;
+            AccessRequestLabel.TabStop = true;
+            AccessRequestLabel.Text = "&Request Access";
             // 
             // InformationLabel
             // 
-            this.InformationLabel.AutoSize = true;
-            this.InformationLabel.BackColor = System.Drawing.Color.Transparent;
-            this.InformationLabel.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.InformationLabel.ForeColor = System.Drawing.Color.Cyan;
-            this.InformationLabel.Location = new System.Drawing.Point(182, 281);
-            this.InformationLabel.Name = "InformationLabel";
-            this.InformationLabel.Size = new System.Drawing.Size(119, 14);
-            this.InformationLabel.TabIndex = 9;
-            this.InformationLabel.Text = "Enter Credentials:";
-            //
+            InformationLabel.AutoSize = true;
+            InformationLabel.BackColor = Color.Transparent;
+            InformationLabel.Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            InformationLabel.ForeColor = Color.Cyan;
+            InformationLabel.Location = new Point(185, 295);
+            InformationLabel.Name = "InformationLabel";
+            InformationLabel.Size = new Size(151, 18);
+            InformationLabel.TabIndex = 9;
+            InformationLabel.Text = "Enter Credentials:";
+            // 
             // RememberUserNameCheckBox
             // 
-            this.RememberUserNameCheckBox.AutoSize = true;
-            this.RememberUserNameCheckBox.BackColor = System.Drawing.Color.Transparent;
-            this.RememberUserNameCheckBox.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.RememberUserNameCheckBox.ForeColor = System.Drawing.Color.Cyan;
-            this.RememberUserNameCheckBox.Location = new System.Drawing.Point(170, 242);
-            this.RememberUserNameCheckBox.Name = "RememberUserNameCheckBox";
-            this.RememberUserNameCheckBox.Size = new System.Drawing.Size(155, 18);
-            this.RememberUserNameCheckBox.TabIndex = 10;
-            this.RememberUserNameCheckBox.Text = "Remember Username";
-            this.RememberUserNameCheckBox.UseVisualStyleBackColor = false;
-            //
+            RememberUserNameCheckBox.AutoSize = true;
+            RememberUserNameCheckBox.BackColor = Color.Transparent;
+            RememberUserNameCheckBox.Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            RememberUserNameCheckBox.ForeColor = Color.Cyan;
+            RememberUserNameCheckBox.Location = new Point(170, 242);
+            RememberUserNameCheckBox.Name = "RememberUserNameCheckBox";
+            RememberUserNameCheckBox.Size = new Size(193, 22);
+            RememberUserNameCheckBox.TabIndex = 10;
+            RememberUserNameCheckBox.Text = "Remember Username";
+            RememberUserNameCheckBox.UseVisualStyleBackColor = false;
+            // 
             // ConfigurationProgressBar
-            //
-            this.ConfigurationProgressBar.Location = new System.Drawing.Point(34, 306);
-            this.ConfigurationProgressBar.Name = "ConfigurationProgressBar";
-            this.ConfigurationProgressBar.Size = new System.Drawing.Size(442, 18);
-            this.ConfigurationProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
-            this.ConfigurationProgressBar.TabIndex = 11;
-            this.ConfigurationProgressBar.Visible = false;
-            //
+            // 
+            ConfigurationProgressBar.Location = new Point(34, 348);
+            ConfigurationProgressBar.Name = "ConfigurationProgressBar";
+            ConfigurationProgressBar.Size = new Size(442, 18);
+            ConfigurationProgressBar.Style = ProgressBarStyle.Continuous;
+            ConfigurationProgressBar.TabIndex = 11;
+            ConfigurationProgressBar.Visible = false;
+            // 
             // ConfigurationStatusLabel
-            //
-            this.ConfigurationStatusLabel.AutoSize = true;
-            this.ConfigurationStatusLabel.BackColor = System.Drawing.Color.Transparent;
-            this.ConfigurationStatusLabel.ForeColor = System.Drawing.Color.Cyan;
-            this.ConfigurationStatusLabel.Location = new System.Drawing.Point(34, 291);
-            this.ConfigurationStatusLabel.Name = "ConfigurationStatusLabel";
-            this.ConfigurationStatusLabel.Size = new System.Drawing.Size(0, 14);
-            this.ConfigurationStatusLabel.TabIndex = 12;
-            this.ConfigurationStatusLabel.Visible = false;
-            //
+            // 
+            ConfigurationStatusLabel.AutoSize = true;
+            ConfigurationStatusLabel.BackColor = Color.Transparent;
+            ConfigurationStatusLabel.ForeColor = Color.Cyan;
+            ConfigurationStatusLabel.Location = new Point(34, 291);
+            ConfigurationStatusLabel.Name = "ConfigurationStatusLabel";
+            ConfigurationStatusLabel.Size = new Size(0, 18);
+            ConfigurationStatusLabel.TabIndex = 12;
+            ConfigurationStatusLabel.Visible = false;
+            // 
             // Authentication
-            //
-            this.AcceptButton = this.LoginButton;
-            this.BackColor = System.Drawing.Color.White;
-            this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
-            this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            this.ClientSize = new System.Drawing.Size(511, 360);
-            this.Controls.Add(this.ConfigurationStatusLabel);
-            this.Controls.Add(this.ConfigurationProgressBar);
-            this.Controls.Add(this.RememberUserNameCheckBox);
-            this.Controls.Add(this.InformationLabel);
-            this.Controls.Add(this.AccessRequestLabel);
-            this.Controls.Add(this.ConnectionStatusStrip);
-            this.Controls.Add(this.PasswordBox);
-            this.Controls.Add(this.UsernameBox);
-            this.Controls.Add(this.ExitButton);
-            this.Controls.Add(this.PasswordLabel);
-            this.Controls.Add(this.UsernameLabel);
-            this.Controls.Add(this.LoginButton);
-            this.DoubleBuffered = true;
-            this.Font = new System.Drawing.Font("Audiowide", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Name = "Authentication";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Dragnet Login";
-            this.Load += new System.EventHandler(this.Authentication_Load);
-            this.ConnectionStatusStrip.ResumeLayout(false);
-            this.ConnectionStatusStrip.PerformLayout();
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            // 
+            AcceptButton = LoginButton;
+            BackColor = Color.White;
+            BackgroundImage = (Image)resources.GetObject("$this.BackgroundImage");
+            BackgroundImageLayout = ImageLayout.Stretch;
+            ClientSize = new Size(511, 391);
+            Controls.Add(ConfigurationStatusLabel);
+            Controls.Add(ConfigurationProgressBar);
+            Controls.Add(RememberUserNameCheckBox);
+            Controls.Add(InformationLabel);
+            Controls.Add(AccessRequestLabel);
+            Controls.Add(ConnectionStatusStrip);
+            Controls.Add(PasswordBox);
+            Controls.Add(UsernameBox);
+            Controls.Add(ExitButton);
+            Controls.Add(PasswordLabel);
+            Controls.Add(UsernameLabel);
+            Controls.Add(LoginButton);
+            DoubleBuffered = true;
+            Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            Icon = (Icon)resources.GetObject("$this.Icon");
+            Name = "Authentication";
+            StartPosition = FormStartPosition.CenterScreen;
+            Text = "Dragnet Login";
+            Load += Authentication_Load;
+            ConnectionStatusStrip.ResumeLayout(false);
+            ConnectionStatusStrip.PerformLayout();
+            ResumeLayout(false);
+            PerformLayout();
 
         }
 
