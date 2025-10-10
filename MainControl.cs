@@ -1110,161 +1110,352 @@ namespace DragnetControl
             }
         }
 
-        private async void autoDelegateButton_Click(object sender, EventArgs e)
+        private void autoDelegateButton_Click(object sender, EventArgs e)
         {
-            SetControlEnabled(autoDelegateButton, false);
-
-            try
+            WipeDragnetControlTables();
+            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
             {
-                WipeDragnetControlTables();
-
-                using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+                conn.Open();
+                var cmd = new MySqlCommand("SELECT ip_address, username, password, port, enabled FROM dragnet_nodes", conn);
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    var cmd = new MySqlCommand("SELECT ip_address FROM dragnet_nodes", conn);
-                    using (var reader = cmd.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
+                        string ip = reader.GetString("ip_address");
+                        string username = reader.GetString("username");
+                        string password = reader.GetString("password");
+
+                        // FIXED KILL PAYLOAD
+                        string killPayload = $"{{\\\"process\\\":\\\"sysmon.exe\\\"}}";
+                        string jsonPayload = $"{{\\\"script\\\":\\\"sysmon.exe\\\",\\\"args\\\":[\\\"{GlobalVariables.DragnetControlIP}\\\",\\\"{GlobalVariables.DragnetControlUser}\\\",\\\"{GlobalVariables.DragnetControlPassword}\\\",\\\".5\\\"]}}";
+                        string killArgs = $"-X POST -H \"Content-Type: application/json\" -d \"{killPayload}\" http://{ip}:5005/kill";
+                        string curlArgs = $"-X POST -H \"Content-Type: application/json\" -d \"{jsonPayload}\" http://{ip}:5005/run";
+                        try
                         {
-                            string ip = reader.GetString("ip_address");
-
-                            string jsonPayload = $"{{\"script\":\"sysmon.exe\",\"args\":[\"{GlobalVariables.DragnetControlIP}\",\"{GlobalVariables.DragnetControlUser}\",\"{GlobalVariables.DragnetControlPassword}\",\".5\"]}}";
-
-                            try
+                            ProcessStartInfo psi = new ProcessStartInfo("curl", killArgs)
                             {
-                                await KillOffCommand(ip, "sysmon.exe", CancellationToken.None).ConfigureAwait(true);
-                            }
-                            catch (Exception ex)
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                            using (var proc = Process.Start(psi))
                             {
-                                Console.WriteLine($"[EXCEPTION]: {ex.Message}");
+                                proc.StandardOutput.ReadToEnd();
+                                proc.StandardError.ReadToEnd();
+                                proc.WaitForExit();
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[EXCEPTION]: {ex.Message}");
+                        }
 
-                            await Task.Delay(3000).ConfigureAwait(true);
+                        // Optional: Give node a brief moment to kill before launching new process
+                        System.Threading.Thread.Sleep(3000);
 
-                            try
+                        try
+                        {
+                            ProcessStartInfo psi = new ProcessStartInfo("curl", curlArgs)
                             {
-                                await FireOffCommand(ip, jsonPayload, CancellationToken.None).ConfigureAwait(true);
-                            }
-                            catch (Exception ex)
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true,
+                                UseShellExecute = false,
+                                CreateNoWindow = true
+                            };
+                            using (var proc = Process.Start(psi))
                             {
-                                Console.WriteLine($"[EXCEPTION]: {ex.Message}");
+                                proc.StandardOutput.ReadToEnd();
+                                proc.StandardError.ReadToEnd();
+                                proc.WaitForExit();
                             }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[EXCEPTION]: {ex.Message}");
                         }
                     }
                 }
-
-                await Task.Delay(3000).ConfigureAwait(true);
-
-                using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            }
+            System.Threading.Thread.Sleep(3000);
+            using (var conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
+            {
+                conn.Open();
+                var cmd = new MySqlCommand("SELECT ip_address, hostname, cpu_score, ram_score FROM dragnet_nodes", conn);
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    var cmd = new MySqlCommand("SELECT ip_address, hostname, cpu_score, ram_score FROM dragnet_nodes", conn);
-                    using (var reader = cmd.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
+                        string ip = reader.IsDBNull(0) ? "" : reader.GetString(0);
+                        string hostname = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                        int cpuScore = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                        int ramScore = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+
+                        // Find the TabPage by IP address in the label
+                        TabPage tab = tabControl1.TabPages
+                            .Cast<TabPage>()
+                            .FirstOrDefault(t => t.Text.EndsWith($"({ip})"));
+
+                        if (tab != null)
                         {
-                            string ip = reader.IsDBNull(0) ? "" : reader.GetString(0);
-                            string hostname = reader.IsDBNull(1) ? "" : reader.GetString(1);
-                            int cpuScore = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
-                            int ramScore = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                            // Compute the new tab text (just like AddNodeTab does)
+                            string newTabLabel = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown"
+                                ? $"Node ({ip})"
+                                : $"{hostname} ({ip})";
+                            tab.Text = newTabLabel;
 
-                            TabPage tab = tabControl1.TabPages
-                                .Cast<TabPage>()
-                                .FirstOrDefault(t => t.Text.EndsWith($"({ip})"));
+                            // Update hostname label (always at (0,0))
+                            var hostnameLabel = tab.Controls.OfType<Label>().FirstOrDefault(l => l.Location == new Point(0, 0));
+                            if (hostnameLabel != null)
+                                hostnameLabel.Text = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown" ? ip : hostname;
 
-                            if (tab != null)
+                            // Update CPU score ComboBox
+                            var cpuLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "CPU Score:");
+                            if (cpuLabel != null)
                             {
-                                string newTabLabel = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown"
-                                    ? $"Node ({ip})"
-                                    : $"{hostname} ({ip})";
+                                var cpuBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - cpuLabel.Location.Y) < 10);
+                                if (cpuBox != null && cpuScore > 0)
+                                    cpuBox.SelectedItem = cpuScore.ToString();
+                            }
 
-                                if (tab.InvokeRequired)
-                                {
-                                    tab.BeginInvoke(new Action(() => tab.Text = newTabLabel));
-                                }
-                                else
-                                {
-                                    tab.Text = newTabLabel;
-                                }
+                            // Update RAM score ComboBox
+                            var ramLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "RAM Score:");
+                            if (ramLabel != null)
+                            {
+                                var ramBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - ramLabel.Location.Y) < 10);
+                                if (ramBox != null && ramScore > 0)
+                                    ramBox.SelectedItem = ramScore.ToString();
+                            }
+                            var curatorEnabled = tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Curator Enabled" && cb.Checked);
+                            if (curatorEnabled)
+                            {
+                                // Calculate params
+                                var (concurrentWorkers, batchSize) = CalculateCuratorParams(cpuScore, ramScore);
 
-                                var hostnameLabel = tab.Controls.OfType<Label>().FirstOrDefault(l => l.Location == new Point(0, 0));
-                                if (hostnameLabel != null)
-                                {
-                                    void UpdateHostname() => hostnameLabel.Text = string.IsNullOrWhiteSpace(hostname) || hostname == "Unknown" ? ip : hostname;
-                                    if (hostnameLabel.InvokeRequired)
-                                        hostnameLabel.BeginInvoke(new Action(UpdateHostname));
-                                    else
-                                        UpdateHostname();
-                                }
+                                // Set to appropriate TextBoxes
+                                var workersBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorWorkersTextBox");
+                                if (workersBox != null)
+                                    workersBox.Text = concurrentWorkers.ToString();
 
-                                var cpuLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "CPU Score:");
-                                if (cpuLabel != null)
-                                {
-                                    var cpuBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - cpuLabel.Location.Y) < 10);
-                                    if (cpuBox != null && cpuScore > 0)
-                                    {
-                                        void UpdateCpu() => cpuBox.SelectedItem = cpuScore.ToString();
-                                        if (cpuBox.InvokeRequired)
-                                            cpuBox.BeginInvoke(new Action(UpdateCpu));
-                                        else
-                                            UpdateCpu();
-                                    }
-                                }
-
-                                var ramLabel = tab.Controls.OfType<Label>().FirstOrDefault(lbl => lbl.Text == "RAM Score:");
-                                if (ramLabel != null)
-                                {
-                                    var ramBox = tab.Controls.OfType<ComboBox>().FirstOrDefault(cb => Math.Abs(cb.Location.Y - ramLabel.Location.Y) < 10);
-                                    if (ramBox != null && ramScore > 0)
-                                    {
-                                        void UpdateRam() => ramBox.SelectedItem = ramScore.ToString();
-                                        if (ramBox.InvokeRequired)
-                                            ramBox.BeginInvoke(new Action(UpdateRam));
-                                        else
-                                            UpdateRam();
-                                    }
-                                }
-
-                                var curatorEnabled = tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Curator Enabled" && cb.Checked);
-                                if (curatorEnabled)
-                                {
-                                    var (concurrentWorkers, batchSize) = CalculateCuratorParams(cpuScore, ramScore);
-
-                                    var workersBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorWorkersTextBox");
-                                    if (workersBox != null)
-                                    {
-                                        void UpdateWorkers() => workersBox.Text = concurrentWorkers.ToString();
-                                        if (workersBox.InvokeRequired)
-                                            workersBox.BeginInvoke(new Action(UpdateWorkers));
-                                        else
-                                            UpdateWorkers();
-                                    }
-
-                                    var batchBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBatchSizeTextBox");
-                                    if (batchBox != null)
-                                    {
-                                        void UpdateBatch() => batchBox.Text = batchSize.ToString();
-                                        if (batchBox.InvokeRequired)
-                                            batchBox.BeginInvoke(new Action(UpdateBatch));
-                                        else
-                                            UpdateBatch();
-                                    }
-                                }
+                                var batchBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorBatchSizeTextBox");
+                                if (batchBox != null)
+                                    batchBox.Text = batchSize.ToString();
                             }
                         }
                     }
                 }
             }
-            catch (Exception ex)
+            // Step 2: Retrieve all assets
+            List<string> assetNames = new List<string>();
+            using (var assetConn = new MySqlConnection(GlobalVariables.AssetDBConnect))
             {
-                BeginInvoke(new Action(() => MessageBox.Show($"Error delegating nodes: {ex.Message}", "Auto Delegate", MessageBoxButtons.OK, MessageBoxIcon.Error)));
+                assetConn.Open();
+                using var assetCmd = new MySqlCommand("SELECT name FROM crypto ORDER BY name ASC;", assetConn);
+                using var assetReader = assetCmd.ExecuteReader();
+                while (assetReader.Read())
+                    assetNames.Add(assetReader.GetString("name").ToUpper());
             }
-            finally
+
+            // Step 3: Identify active nodes per module
+            var activeNodes = new List<TabPage>();
+            foreach (TabPage tab in tabControl1.TabPages)
+                activeNodes.Add(tab);
+
+            // Step 3: Identify active tabs for each module based on current UI checkbox state
+            var scannerTabs = tabControl1.TabPages.Cast<TabPage>()
+                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Crypto Scanner" && cb.Checked)).ToList();
+
+            var obScannerTabs = tabControl1.TabPages.Cast<TabPage>()
+                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Orderbook Scanner" && cb.Checked)).ToList();
+
+            var curatorTabs = tabControl1.TabPages.Cast<TabPage>()
+                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Curator Enabled" && cb.Checked)).ToList();
+
+            var TelegramScannerTabs = tabControl1.TabPages.Cast<TabPage>()
+               .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Telegram Scanner" && cb.Checked)).ToList();
+
+            var NewsScraperTabs = tabControl1.TabPages.Cast<TabPage>()
+                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "News Scraper" && cb.Checked)).ToList();
+
+            var TrendsScraperTabs = tabControl1.TabPages.Cast<TabPage>()
+                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Trends Scraper" && cb.Checked)).ToList();
+
+            var HistoricalScannerTabs = tabControl1.TabPages.Cast<TabPage>()
+                .Where(tab => tab.Controls.OfType<System.Windows.Forms.CheckBox>().Any(cb => cb.Text == "Historical Scanner" && cb.Checked)).ToList();
+
+            int activeCryptoScanners = scannerTabs.Count; // Crypto Scanner tabs
+            int activeOBScanners = obScannerTabs.Count;   // Orderbook Scanner tabs
+            int activeTelegramTabs = TelegramScannerTabs.Count; // Telegram Scraper tabs
+            int activeNewsScrapers = NewsScraperTabs.Count; // News Scraper tabs
+            int activeTrendsScrapers = TrendsScraperTabs.Count; // Trends Scraper tabs
+            int capitoltradescount = HistoricalScannerTabs.Count; // historical scanner tabs
+
+            // --- Calculate delays (QPS = queries per second; Coinbase = 10 QPS hard limit) ---
+            double coinbaseQps = 10.0;
+            double safety = 0.9;
+
+            // For Crypto Scanner
+            double cryptoDelay = 1.0 / ((coinbaseQps * safety) / Math.Max(1, activeCryptoScanners));
+
+            // --- Update users table (example: set for current/active user, or for all) ---
+            using (var userConn = new MySqlConnection(GlobalVariables.UsersDBConnect))
             {
-                SetControlEnabled(autoDelegateButton, true);
+                userConn.Open();
+                // Update CryptoDelay
+                var updateCrypto = new MySqlCommand("UPDATE users SET CryptoDelay=@delay WHERE username=@username", userConn);
+                updateCrypto.Parameters.AddWithValue("@delay", cryptoDelay);
+                updateCrypto.Parameters.AddWithValue("@username", GlobalVariables.username);
+                updateCrypto.ExecuteNonQuery();
+                GlobalVariables.UpdateSessionState(state => state.CryptoDelay = (float)cryptoDelay);
             }
+
+            // Helper function to split asset list
+            List<(string start, string end)> ComputeAssetBlocks(List<string> assets, int partitions)
+            {
+                var blocks = new List<(string, string)>();
+                if (partitions <= 0) return blocks;
+
+                int blockSize = assets.Count / partitions;
+                int remainder = assets.Count % partitions;
+                int currentIndex = 0;
+
+                for (int i = 0; i < partitions; i++)
+                {
+                    int currentBlockSize = blockSize + (i < remainder ? 1 : 0);
+                    string start = assets[currentIndex];
+                    string end = assets[Math.Min(currentIndex + currentBlockSize - 1, assets.Count - 1)];
+                    blocks.Add((start, end));
+                    currentIndex += currentBlockSize;
+                }
+                return blocks;
+            }
+
+            // Step 4: Compute blocks
+            var scannerBlocks = ComputeAssetBlocks(assetNames, scannerTabs.Count);
+            var obScannerBlocks = ComputeAssetBlocks(assetNames, obScannerTabs.Count);
+            var curatorBlocks = ComputeAssetBlocks(assetNames, curatorTabs.Count);
+            var telegramBlocks = ComputeAssetBlocks(assetNames, TelegramScannerTabs.Count);
+            var newsScraperBlocks = ComputeAssetBlocks(assetNames, NewsScraperTabs.Count);
+            var trendsScraperBlocks = ComputeAssetBlocks(assetNames, TrendsScraperTabs.Count);
+            var HistoricalScannerBlocks = ComputeAssetBlocks(assetNames, HistoricalScannerTabs.Count);
+
+            // Step 5: Populate TextBoxes automatically
+            void SetBlockRange(TabPage tab, string module, (string start, string end) block)
+            {
+                var startLabel = tab.Controls.OfType<Label>().First(lbl => lbl.Text == "Start at Block:" && lbl.Location.Y > tab.Controls.OfType<System.Windows.Forms.CheckBox>().First(cb => cb.Text == module).Location.Y);
+                var endLabel = tab.Controls.OfType<Label>().First(lbl => lbl.Text == "End at Block:" && lbl.Location.Y > tab.Controls.OfType<System.Windows.Forms.CheckBox>().First(cb => cb.Text == module).Location.Y);
+
+                var startBox = tab.Controls.OfType<TextBox>().First(tb => tb.Location.X == startLabel.Location.X + 110 && Math.Abs(tb.Location.Y - startLabel.Location.Y) < 10);
+                var endBox = tab.Controls.OfType<TextBox>().First(tb => tb.Location.X == endLabel.Location.X + 100 && Math.Abs(tb.Location.Y - endLabel.Location.Y) < 10);
+
+                startBox.Text = block.start;
+                endBox.Text = block.end;
+            }
+
+            for (int i = 0; i < scannerTabs.Count; i++)
+                SetBlockRange(scannerTabs[i], "Crypto Scanner", scannerBlocks[i]);
+
+            for (int i = 0; i < obScannerTabs.Count; i++)
+                SetBlockRange(obScannerTabs[i], "Orderbook Scanner", obScannerBlocks[i]);
+
+            for (int i = 0; i < curatorTabs.Count; i++)
+                SetBlockRange(curatorTabs[i], "Curator Enabled", curatorBlocks[i]);
+
+            for (int i = 0; i < TelegramScannerTabs.Count; i++)
+                SetBlockRange(TelegramScannerTabs[i], "Telegram Scanner", telegramBlocks[i]);
+
+            for (int i = 0; i < NewsScraperTabs.Count; i++)
+                SetBlockRange(NewsScraperTabs[i], "News Scraper", newsScraperBlocks[i]);
+
+            for (int i = 0; i < TrendsScraperTabs.Count; i++)
+                SetBlockRange(TrendsScraperTabs[i], "Trends Scraper", trendsScraperBlocks[i]);
+
+            for (int i = 0; i < HistoricalScannerTabs.Count; i++)
+                SetBlockRange(HistoricalScannerTabs[i], "Historical Scanner", HistoricalScannerBlocks[i]);
+
+            // Set Scanner IDs
+            for (int i = 0; i < scannerTabs.Count; i++)
+            {
+                var tab = scannerTabs[i];
+                // Extract node IP from tab label (e.g. "Node (10.0.0.44)" or "MyHost (10.0.0.44)")
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string scannerID = GenerateModuleID("Scanner", ip);
+
+                var scannerIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "ScannerIDTextBox");
+                if (scannerIDBox != null)
+                    scannerIDBox.Text = scannerID;
+            }
+
+            // Set OBScanner IDs
+            for (int i = 0; i < obScannerTabs.Count; i++)
+            {
+                var tab = obScannerTabs[i];
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string obScannerID = GenerateModuleID("OBScanner", ip);
+
+                var obScannerIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "OBScannerIDTextBox");
+                if (obScannerIDBox != null)
+                    obScannerIDBox.Text = obScannerID;
+            }
+
+            // Set Curator IDs
+            for (int i = 0; i < curatorTabs.Count; i++)
+            {
+                var tab = curatorTabs[i];
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string curatorID = GenerateModuleID("Curator", ip);
+
+                var curatorIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "CuratorIDTextBox");
+                if (curatorIDBox != null)
+                    curatorIDBox.Text = curatorID;
+            }
+
+            // Set Telegram Scraper IDs
+            for (int i = 0; i < TelegramScannerTabs.Count; i++)
+            {
+                var tab = TelegramScannerTabs[i];
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string TelegramScannerID = GenerateModuleID("TelegramScanner", ip);
+
+                var telegramScannerIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TelegramScannerIDTextBox");
+                if (telegramScannerIDBox != null)
+                    telegramScannerIDBox.Text = TelegramScannerID;
+            }
+
+            // Set NewsScraper IDs
+            for (int i = 0; i < NewsScraperTabs.Count; i++)
+            {
+                var tab = NewsScraperTabs[i];
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string newsScraperID = GenerateModuleID("News", ip);
+                var newsScraperIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "NewsScraperIDTextBox");
+                if (newsScraperIDBox != null)
+                    newsScraperIDBox.Text = newsScraperID;
+            }
+            // Set TrendsScraper IDs
+            for (int i = 0; i < TrendsScraperTabs.Count; i++)
+            {
+                var tab = TrendsScraperTabs[i];
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string trendsScraperID = GenerateModuleID("Trends", ip);
+                var trendsScraperIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "TrendsScraperIDTextBox");
+                if (trendsScraperIDBox != null)
+                    trendsScraperIDBox.Text = trendsScraperID;
+            }
+
+            // Set CapitolTrades IDs
+            for (int i = 0; i < HistoricalScannerTabs.Count; i++)
+            {
+                var tab = HistoricalScannerTabs[i];
+                string ip = tab.Text.Substring(tab.Text.LastIndexOf('(') + 1).TrimEnd(')');
+                string capitolTradesID = GenerateModuleID("Retroscanner", ip);
+                var capitolTradesIDBox = tab.Controls.OfType<TextBox>().FirstOrDefault(tb => tb.Name == "RetroScannerIDTextBox");
+                if (capitolTradesIDBox != null)
+                    capitolTradesIDBox.Text = capitolTradesID;
+            }
+
+            MessageBox.Show("Auto-delegate completed and asset ranges set.", "Done");
         }
-
         // Helper for ID generation
         private (int concurrentWorkers, int batchSize) CalculateCuratorParams(int cpuScore, int ramScore, int ramPerWorkerMb = 512, int batchRamCostMb = 128, int minBatch = 10, int maxBatch = 1000)
         {
@@ -1853,7 +2044,7 @@ namespace DragnetControl
                 using (MySqlConnection conn = new MySqlConnection(GlobalVariables.ControlDBConnect))
                 {
                     conn.Open();
-                    string query = "SELECT orderbook_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM orderbook_modules ORDER BY node_ip;";
+                    string query = "SELECT Obscanner_id, node_ip, asset_range_start, asset_range_end, status, last_heartbeat FROM orderbook_modules ORDER BY node_ip;";
                     using (MySqlCommand cmd = new MySqlCommand(query, conn))
                     using (MySqlDataAdapter adapter = new MySqlDataAdapter(cmd))
                     {
