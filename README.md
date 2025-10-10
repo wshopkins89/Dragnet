@@ -2,17 +2,17 @@
 
 # Dragnet Control
 
-# Overview
+## Overview
 
-# Dragnet Control is a Windows desktop operations console built on .NET 8 WinForms that orchestrates data-ingestion nodes, scanners, and analytics services across a distributed network. The executable boots into a credentialed authentication flow backed by MySQL, promotes legacy accounts to modern password hashing when necessary, and then loads per-user configuration before handing control to the main dashboard. Shared configuration such as database endpoints, API credentials, and scheduler settings is kept in a centralized GlobalVariables store and reused across forms via a singleton MainControl instance managed by FormManager.
+### Dragnet Control is a Windows desktop operations console built on .NET 8 WinForms that orchestrates data-ingestion nodes, scanners, and analytics services across a distributed network. The executable boots into a credentialed authentication flow backed by MySQL, promotes legacy accounts to modern password hashing when necessary, and then loads per-user configuration before handing control to the main dashboard. Shared configuration such as database endpoints, API credentials, and scheduler settings is kept in a centralized GlobalVariables store and reused across forms via a singleton MainControl instance managed by FormManager.
 
-# 
+## 
 
-# Architecture
+## Architecture
 
-# Windows control application
+### Windows control application
 
-# Real-time resource monitoring: The main dashboard wires timers and LiveCharts series to display CPU core load, RAM utilization trends, and disk capacity for the head node or any selected remote worker.
+##### Real-time resource monitoring: The main dashboard wires timers and LiveCharts series to display CPU core load, RAM utilization trends, and disk capacity for the head node or any selected remote worker.
 
 # 
 
