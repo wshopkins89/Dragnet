@@ -65,7 +65,7 @@ namespace DragnetControl
             UsernameLabel.ForeColor = Color.Cyan;
             UsernameLabel.Location = new Point(12, 159);
             UsernameLabel.Name = "UsernameLabel";
-            UsernameLabel.Size = new Size(200, 35);
+            UsernameLabel.Size = new Size(156, 27);
             UsernameLabel.TabIndex = 1;
             UsernameLabel.Text = "USERNAME:";
             // 
@@ -77,7 +77,7 @@ namespace DragnetControl
             PasswordLabel.ForeColor = Color.Cyan;
             PasswordLabel.Location = new Point(9, 206);
             PasswordLabel.Name = "PasswordLabel";
-            PasswordLabel.Size = new Size(203, 35);
+            PasswordLabel.Size = new Size(157, 27);
             PasswordLabel.TabIndex = 2;
             PasswordLabel.Text = "PASSWORD:";
             // 
@@ -97,7 +97,7 @@ namespace DragnetControl
             UsernameBox.Font = new Font("Audiowide", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             UsernameBox.Location = new Point(170, 157);
             UsernameBox.Name = "UsernameBox";
-            UsernameBox.Size = new Size(213, 41);
+            UsernameBox.Size = new Size(213, 34);
             UsernameBox.TabIndex = 1;
             // 
             // PasswordBox
@@ -106,7 +106,7 @@ namespace DragnetControl
             PasswordBox.Location = new Point(170, 204);
             PasswordBox.Name = "PasswordBox";
             PasswordBox.PasswordChar = '•';
-            PasswordBox.Size = new Size(212, 37);
+            PasswordBox.Size = new Size(212, 31);
             PasswordBox.TabIndex = 2;
             // 
             // ConnectionStatusStrip
@@ -126,7 +126,7 @@ namespace DragnetControl
             toolStripStatusLabel1.Font = new Font("Audiowide", 6.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             toolStripStatusLabel1.ForeColor = Color.Cyan;
             toolStripStatusLabel1.Name = "toolStripStatusLabel1";
-            toolStripStatusLabel1.Size = new Size(131, 16);
+            toolStripStatusLabel1.Size = new Size(98, 17);
             toolStripStatusLabel1.Text = "Connection Status";
             // 
             // AccessRequestLabel
@@ -134,9 +134,9 @@ namespace DragnetControl
             AccessRequestLabel.AutoSize = true;
             AccessRequestLabel.BackColor = Color.Transparent;
             AccessRequestLabel.Font = new Font("Audiowide", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            AccessRequestLabel.Location = new Point(194, 320);
+            AccessRequestLabel.Location = new Point(197, 331);
             AccessRequestLabel.Name = "AccessRequestLabel";
-            AccessRequestLabel.Size = new Size(134, 18);
+            AccessRequestLabel.Size = new Size(107, 14);
             AccessRequestLabel.TabIndex = 7;
             AccessRequestLabel.TabStop = true;
             AccessRequestLabel.Text = "&Request Access";
@@ -149,7 +149,7 @@ namespace DragnetControl
             InformationLabel.ForeColor = Color.Cyan;
             InformationLabel.Location = new Point(185, 295);
             InformationLabel.Name = "InformationLabel";
-            InformationLabel.Size = new Size(151, 18);
+            InformationLabel.Size = new Size(119, 14);
             InformationLabel.TabIndex = 9;
             InformationLabel.Text = "Enter Credentials:";
             // 
@@ -161,7 +161,7 @@ namespace DragnetControl
             RememberUserNameCheckBox.ForeColor = Color.Cyan;
             RememberUserNameCheckBox.Location = new Point(170, 242);
             RememberUserNameCheckBox.Name = "RememberUserNameCheckBox";
-            RememberUserNameCheckBox.Size = new Size(193, 22);
+            RememberUserNameCheckBox.Size = new Size(155, 18);
             RememberUserNameCheckBox.TabIndex = 10;
             RememberUserNameCheckBox.Text = "Remember Username";
             RememberUserNameCheckBox.UseVisualStyleBackColor = false;
@@ -182,7 +182,7 @@ namespace DragnetControl
             ConfigurationStatusLabel.ForeColor = Color.Cyan;
             ConfigurationStatusLabel.Location = new Point(34, 291);
             ConfigurationStatusLabel.Name = "ConfigurationStatusLabel";
-            ConfigurationStatusLabel.Size = new Size(0, 18);
+            ConfigurationStatusLabel.Size = new Size(0, 14);
             ConfigurationStatusLabel.TabIndex = 12;
             ConfigurationStatusLabel.Visible = false;
             // 

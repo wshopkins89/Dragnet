@@ -228,15 +228,10 @@ namespace DragnetControl
         private void ShowLoadingIndicators(bool visible)
         {
             ConfigurationProgressBar.Visible = visible;
-            ConfigurationStatusLabel.Visible = visible;
             if (visible)
             {
                 ConfigurationProgressBar.Value = ConfigurationProgressBar.Minimum;
-                ConfigurationStatusLabel.Text = "Preparing configuration...";
-            }
-            else
-            {
-                ConfigurationStatusLabel.Text = string.Empty;
+                InformationLabel.Text = "Preparing configuration...";
             }
         }
 
@@ -244,7 +239,7 @@ namespace DragnetControl
         {
             var value = Math.Max(ConfigurationProgressBar.Minimum, Math.Min(ConfigurationProgressBar.Maximum, progress.Value));
             ConfigurationProgressBar.Value = value;
-            ConfigurationStatusLabel.Text = progress.Message;
+            InformationLabel.Text = progress.Message;
         }
     }
 }
