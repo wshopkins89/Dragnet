@@ -1,42 +1,42 @@
-# 
+##
 
 # Dragnet Control
 
-# Overview
+## Overview
 
-# Dragnet Control is a Windows desktop operations console built on .NET 8 WinForms that orchestrates data-ingestion nodes, scanners, and analytics services across a distributed network. The executable boots into a credentialed authentication flow backed by MySQL, promotes legacy accounts to modern password hashing when necessary, and then loads per-user configuration before handing control to the main dashboard. Shared configuration such as database endpoints, API credentials, and scheduler settings is kept in a centralized GlobalVariables store and reused across forms via a singleton MainControl instance managed by FormManager.
+## Dragnet Control is a Windows desktop operations console built on .NET 8 WinForms that orchestrates data-ingestion nodes, scanners, and analytics services across a distributed network. The executable boots into a credentialed authentication flow backed by MySQL, promotes legacy accounts to modern password hashing when necessary, and then loads per-user configuration before handing control to the main dashboard. Shared configuration such as database endpoints, API credentials, and scheduler settings is kept in a centralized GlobalVariables store and reused across forms via a singleton MainControl instance managed by FormManager.
 
-# 
+##
 
-# Architecture
+## Architecture
 
-# Windows control application
+## Windows control application
 
-# Real-time resource monitoring: The main dashboard wires timers and LiveCharts series to display CPU core load, RAM utilization trends, and disk capacity for the head node or any selected remote worker.
+## Real-time resource monitoring: The main dashboard wires timers and LiveCharts series to display CPU core load, RAM utilization trends, and disk capacity for the head node or any selected remote worker.
 
-# 
+## 
 
-# Node management: The console self-registers the head node, enumerates enabled worker records from dragnet\_nodes, and materializes per-node tabs with module controls, resource scores, and connection metadata.
+## Node management: The console self-registers the head node, enumerates enabled worker records from dragnet\_nodes, and materializes per-node tabs with module controls, resource scores, and connection metadata.
 
-# 
+## 
 
-# Asset and telemetry editing: Administrators can edit the crypto asset catalog and arbitrary Dragnet tables directly via bound DataGridView instances with guarded save flows and auto-refresh support.
+## Asset and telemetry editing: Administrators can edit the crypto asset catalog and arbitrary Dragnet tables directly via bound DataGridView instances with guarded save flows and auto-refresh support.
 
-# 
+## 
 
-# Operational telemetry \& remediation: The watchdog refresh loop loads curator/scanner/order-book/daemon module registries, colors rows based on heartbeat health, surfaces error logs, wipes control tables on demand, and can auto-restart unhealthy modules via scripted payloads.
+## Operational telemetry \& remediation: The watchdog refresh loop loads curator/scanner/order-book/daemon module registries, colors rows based on heartbeat health, surfaces error logs, wipes control tables on demand, and can auto-restart unhealthy modules via scripted payloads.
 
-# 
+## 
 
-# Automation scheduler: An in-app scheduler persists dragnet tasks, caches schedule rows, applies day-of-week and date masks, and dispatches scripts (e.g., asset list builders or checkbox-enabled modules) only once per minute per node.
+## Automation scheduler: An in-app scheduler persists dragnet tasks, caches schedule rows, applies day-of-week and date masks, and dispatches scripts (e.g., asset list builders or checkbox-enabled modules) only once per minute per node.
 
-# 
+## 
 
-# Command \& control: Local scripts run in new terminals, while remote launches and kills are executed over HTTP using curl requests against each node’s listener; the console can also issue bulk shutdowns.
+## Command \& control: Local scripts run in new terminals, while remote launches and kills are executed over HTTP using curl requests against each node’s listener; the console can also issue bulk shutdowns.
 
-# 
+## 
 
-# Continuous monitoring: A watchdog timer refreshes dashboard data asynchronously to keep module status and telemetry current without blocking the UI thread.
+## Continuous monitoring: A watchdog timer refreshes dashboard data asynchronously to keep module status and telemetry current without blocking the UI thread.
 
 # 
 
