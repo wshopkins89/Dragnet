@@ -18,6 +18,11 @@ namespace DragnetControl
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _configurationLoader = new ConfigurationLoader(_configuration);
             InitializeComponent();
+            GlobalVariables.UsersDBIP = "192.168.1.210";
+            GlobalVariables.UsersDBUsername = "dragnet";
+            GlobalVariables.usersdbPW = "dragnet5";
+            GlobalVariables.UsersDBConnect =
+                $"server={GlobalVariables.UsersDBIP};uid={GlobalVariables.UsersDBUsername};password={GlobalVariables.usersdbPW};database=userdata";
         }
 
         private bool CheckCredentials(string username, string passwordAttempt, out bool dbError, out int accountStatus)
