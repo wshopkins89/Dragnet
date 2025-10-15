@@ -44,26 +44,7 @@ end_asset          = sys.argv[15].lower()
 telephone_no       = sys.argv[16]
 delay_seconds      = float(sys.argv[17])
 timespan           = int(sys.argv[18])
-'''
-telegramscanner_id = 'telegramtestscanner'
-dragnet_db_host    = '192.168.1.210'
-dragnet_db_user    = 'dragnet'
-dragnet_db_pass    = 'dragnet5'
-control_db_host    = '192.168.1.210'
-control_db_user    = 'dragnet'
-control_db_pass    = 'dragnet5'
-assets_db_host     = '192.168.1.210'
-assets_db_user     = 'dragnet'
-assets_db_pass     = 'dragnet5'
-tg_session_name    = 'testsession'
-tg_api_id          = 23120476
-tg_api_hash        = 'dcd3b7fa3f1d6d55c985091724ae05c4'
-start_asset        = '00 token'
-end_asset          = 'zora'
-phone_number       = '+19132146287'
-delay_seconds      = float(.5)
-timespan           = 10
-'''
+
 engine_assets  = create_engine(f'mysql+mysqldb://{assets_db_user}:{assets_db_pass}@{assets_db_host}/assets')
 engine_control = create_engine(f'mysql+mysqldb://{control_db_user}:{control_db_pass}@{control_db_host}/dragnetcontrol')
 engine_tg      = create_engine(f'mysql+mysqldb://{dragnet_db_user}:{dragnet_db_pass}@{dragnet_db_host}/telegramdata')
