@@ -42,26 +42,6 @@ binance_us_api_key = sys.argv[17]
 granularity = int(sys.argv[18])
 hours = float(sys.argv[19])
 
-"""Obscanner_id = 'testscanner'
-dragnet_db_host = '192.168.1.210'
-dragnet_db_username = 'dragnet'
-dragnet_db_password = 'dragnet5'
-control_db_host = '192.168.1.210'
-control_db_username = 'dragnet'
-control_db_pass = 'dragnet5'
-assets_db_host = '192.168.1.210'
-assets_db_username = 'dragnet'
-assets_db_pass = 'dragnet5'
-start_asset = '00 token'
-end_asset = 'zora'
-delay = .444
-coinbase_api_key = 'f543e74079ddd719989ed24a29019f02'
-coinbase_api_secret = 'LR5Ql2/A6CTyUqtbecJ8IFcsuGbo8WftVtY+VKkHdrcShzLou5cGwB4t6Q7xd3Y6AkYVau0m6+tQdrtqEjXBtQ=='
-coinbase_passphrase = '3bnlix8qyh'
-binance_us_api_key = '3apj9lJKK5lnUUrJ0gZWUsCgNzf4MUl70e4gVJEh32ReR3ziiVXhZhU46xdx2rdk'
-granularity = 60
-hours = .25"""
-
 engine_assets = f'mysql+mysqldb://{assets_db_username}:{assets_db_pass}@{assets_db_host}/assets'
 assets_engine = create_engine(engine_assets)
 engine_control = f'mysql+mysqldb://{control_db_username}:{control_db_pass}@{control_db_host}'
