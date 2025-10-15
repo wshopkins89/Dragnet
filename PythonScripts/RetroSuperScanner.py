@@ -38,24 +38,7 @@ if len(sys.argv) < 15:
     print("Arguments received:", sys.argv)
     time.sleep(10)
     sys.exit(1)
-'''
-scanner_id = 'testretroscanner'
-dragnet_db_host = 'localhost'
-dragnet_db_username = 'dragnet'
-dragnet_db_password = 'dragnet5'
-control_db_host = 'localhost'
-control_db_user = 'dragnet'
-control_db_pass = 'dragnet5'
-assets_db_host = 'localhost'
-assets_db_username = 'dragnet'
-assets_db_pass = 'dragnet5'
-start_asset = 'bitcoin'
-end_asset = 'ether'
-start_date = datetime.strptime('08042025', "%m%d%Y")
-end_date = datetime.strptime('01012001', "%m%d%Y")
-delay = .1
 
-'''
 scanner_id = sys.argv[1]
 dragnet_db_host = sys.argv[2]
 dragnet_db_username = sys.argv[3]
