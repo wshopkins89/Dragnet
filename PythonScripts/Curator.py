@@ -214,7 +214,10 @@ def upsert_dragnet_row(dragnet_engine, df, asset):
     cols = [f"`{col}`" for col in df.columns]
     cols_str = ', '.join(cols)
     placeholders = ', '.join(['%s'] * len(cols))
-    upserts = ', '.join([f"{col}=VALUES({col})" for col in cols if col != '`timestamp`'])
+    upserts = ', '.join([
+        f"{col}=IF(VALUES({col}) IS NOT NULL, VALUES({col}), {col})"
+        for col in cols if col != '`timestamp`'
+    ])
 
     sql = (
         f"INSERT INTO `{table_name}` ({cols_str}) VALUES ({placeholders}) "
