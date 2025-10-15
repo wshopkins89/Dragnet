@@ -19,11 +19,6 @@ MYSQL_USER = sys.argv[2]
 MYSQL_PASS = sys.argv[3]
 UPDATE_INTERVAL = float(sys.argv[4])
 
-#CONTROL_IP = "192.168.1.210"
-#MYSQL_USER = "dragnet"
-#MYSQL_PASS = "dragnet5"
-#UPDATE_INTERVAL = .5
-
 CONTROL_DB = "dragnetcontrol"
 TABLE_NAME = "dragnet_nodes"
 
