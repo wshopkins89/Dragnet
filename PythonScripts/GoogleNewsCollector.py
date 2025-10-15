@@ -42,21 +42,7 @@ if len(sys.argv) < 13:
     print("Data pass incomplete. Values missing or in error")
     time.sleep(10)
     sys.exit(1)
-'''
-newsscraper_id = 'scrapertest'
-news_db_host = '192.168.1.210'
-news_db_username = 'dragnet'
-news_db_password = 'dragnet5'
-control_db_host = '192.168.1.210'
-control_db_user = 'dragnet'
-control_db_pass = 'dragnet5'
-assets_db_host = '192.168.1.210'
-assets_db_username = 'dragnet'
-assets_db_pass = 'dragnet5'
-start_asset = 'aave'
-end_asset = 'bitcoin'
-hours = float(24)
-'''
+    
 newsscraper_id = sys.argv[1]
 news_db_host = sys.argv[2]
 news_db_username = sys.argv[3]
