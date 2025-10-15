@@ -29,18 +29,6 @@ if len(sys.argv) < 11:
     time.sleep(10)
     sys.exit(1)
 
-"""node_id = 1
-curator_id = 'testCurator'
-dragnet_db_host = '192.168.1.210'
-dragnet_db_username = 'dragnet'
-dragnet_db_password = 'dragnet5'
-control_db_host = '192.168.1.210'
-control_db_user = 'dragnet'
-control_db_pass = 'dragnet5'
-start_asset = 'B'
-end_asset = 'B'
-delay = """
-
 curator_id = sys.argv[1]
 dragnet_db_host = sys.argv[2]
 dragnet_db_username = sys.argv[3]
