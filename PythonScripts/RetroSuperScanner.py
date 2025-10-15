@@ -55,23 +55,6 @@ start_date = datetime.strptime('08042025', "%m%d%Y")
 end_date = datetime.strptime('01012001', "%m%d%Y")
 delay = .1
 
-'''
-scanner_id = sys.argv[1]
-dragnet_db_host = sys.argv[2]
-dragnet_db_username = sys.argv[3]
-dragnet_db_password = sys.argv[4]
-control_db_host = sys.argv[5]
-control_db_user = sys.argv[6]
-control_db_pass = sys.argv[7]
-assets_db_host = sys.argv[8]
-assets_db_username = sys.argv[9]
-assets_db_pass = sys.argv[10]
-start_asset = sys.argv[11]
-end_asset = sys.argv[12]
-start_date = datetime.strptime(sys.argv[13], "%m%d%Y")
-end_date = datetime.strptime(sys.argv[14], "%m%d%Y")
-delay = float(sys.argv[15])
-
 engine_assets = f'mysql+mysqldb://{assets_db_username}:{assets_db_pass}@{assets_db_host}/assets'
 assets_engine = create_engine(engine_assets, pool_size=5, max_overflow=2, pool_recycle=1800, pool_pre_ping=True, future=True)
 engine_control = f'mysql+mysqldb://{control_db_user}:{control_db_pass}@{control_db_host}'
