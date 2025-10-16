@@ -749,10 +749,32 @@ def process_asset_combined(asset):
         rep_df = agg_df  # rep_df is now just agg_df, already augmented
 
          #(4) 1-minute rolling indicators
-        merged_df = rep_df.copy()
-        if not merged_df.empty:
-            merged_df = calculate_indicators_for_interval(merged_df, interval="")
-        upsert_dragnet_row(dragnet_engine, merged_df, asset)
+       merged_df = rep_df.copy()
+if not merged_df.empty:
+    merged_df = calculate_indicators_for_interval(merged_df, interval="")
+    merged_df = merged_df.tail(3)          # <-- culprit
+upsert_dragnet_row(dragnet_engine, merged_df, asset)
+
+# --- after (option A: write the whole 2h window) ---
+merged_df = rep_df.copy()
+if not merged_df.empty:
+    # (optional) make the minute index continuous so rolling calcs don't get NaN islands
+    merged_df = merged_df.set_index("timestamp").sort_index()
+    merged_df = merged_df.asfreq("T")  # inserts missing minutes as NaN rows
+    merged_df = merged_df.reset_index()
+
+    merged_df = calculate_indicators_for_interval(merged_df, interval="")
+    # no tail()    <-- keep the whole window so earlier minute rows get filled
+upsert_dragnet_row(dragnet_engine, merged_df, asset)
+
+# --- after (option B: bounded write, still plenty for 200-period EMAs) ---
+WINDOW = 1200  # ~20 hours @ 1-min; adjust to your comfort
+merged_df = rep_df.copy()
+if not merged_df.empty:
+    merged_df = merged_df.set_index("timestamp").sort_index().asfreq("T").reset_index()
+    merged_df = calculate_indicators_for_interval(merged_df, interval="")
+    merged_df = merged_df.tail(WINDOW)  # keep enough history for 200 EMA/Bollinger etc.
+upsert_dragnet_row(dragnet_engine, merged_df, asset)
         logging.info(f"[{asset}] 1‑minute data processed and upserted.")
 
         # (5) Process higher intervals
