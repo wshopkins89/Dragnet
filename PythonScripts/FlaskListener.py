@@ -86,7 +86,7 @@ def kill_process():
         return jsonify({"error": "Killing sysmon is not allowed"}), 403
 
     ALL_DRAGNET_SCRIPTS = [
-        "sysmon", "Scanner", "Obscanner", "Curator",
+        "sysmon", "Scanner", "Obscanner", "Curator", "RetroScannerDragnet5",
         "GoogleNewsCollector", "TrendsScraper", "CapitolTradesModule"
     ]
 
