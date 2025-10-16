@@ -48,15 +48,6 @@ dragnet_engine = create_engine(engine_dragnet)
 inspector = inspect(dragnet_engine)
 
 node_ip = 'error'
-try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('8.8.8.8', 80))  # Google's DNS; not actually contacted
-    node_ip = s.getsockname()[0]
-    s.close()
-except Exception as e:
-    log_module_event(control_engine, 'curator', curator_id, node_ip, 'error', str(e))
-    raise
-
 now = datetime.now()
 
 def log_module_event(control_engine, module_type, module_id, module_ip, log_level, message):
@@ -100,6 +91,16 @@ try:
             'last_heartbeat': now
         })
         conn.commit()
+
+except Exception as e:
+    log_module_event(control_engine, 'curator', curator_id, node_ip, 'error', str(e))
+    raise
+
+try:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('8.8.8.8', 80))  # Google's DNS; not actually contacted
+    node_ip = s.getsockname()[0]
+    s.close()
 except Exception as e:
     log_module_event(control_engine, 'curator', curator_id, node_ip, 'error', str(e))
     raise
@@ -751,8 +752,6 @@ def process_asset_combined(asset):
         merged_df = rep_df.copy()
         if not merged_df.empty:
             merged_df = calculate_indicators_for_interval(merged_df, interval="")
-            # Optionally keep last N rows
-            merged_df = merged_df.tail(3)
         upsert_dragnet_row(dragnet_engine, merged_df, asset)
         logging.info(f"[{asset}] 1‑minute data processed and upserted.")
 
